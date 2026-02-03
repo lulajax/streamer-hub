@@ -29,7 +29,6 @@ public class JwtSubscriptionFilter extends OncePerRequestFilter {
             "/api/auth/",
             "/api/activation/",
             "/api/public/",
-            "/api/tiktok/",
             "/ws/",
             "/actuator/"
     );

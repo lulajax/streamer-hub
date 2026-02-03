@@ -17,6 +17,128 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 let mainWindow: BrowserWindow | null = null
 let monitorWindow: BrowserWindow | null = null
+let tiktokConnection: any | null = null
+let tiktokUniqueId = ''
+
+type TikTokLiveEvent =
+  | { type: 'gift'; payload: any }
+  | { type: 'chat'; payload: any }
+  | { type: 'member'; payload: any }
+  | { type: 'like'; payload: any }
+  | { type: 'connected'; payload: { roomId?: string } }
+  | { type: 'disconnected' }
+  | { type: 'error'; payload: { message: string } }
+
+function sendTikTokEvent(event: TikTokLiveEvent): void {
+  mainWindow?.webContents.send('tiktok-live-event', event)
+}
+
+function disconnectTikTok(): void {
+  if (tiktokConnection) {
+    try {
+      tiktokConnection.disconnect()
+    } catch (err) {
+      console.warn('Failed to disconnect TikTok connection', err)
+    }
+    tiktokConnection = null
+    tiktokUniqueId = ''
+  }
+}
+
+function mapTikTokUser(data: any) {
+  return {
+    userId: data.user?.userId || '',
+    userName: data.user?.uniqueId || '',
+    userNickname: data.user?.nickname || '',
+    userAvatar: data.user?.avatarThumb || '',
+  }
+}
+
+async function getTikTokConnection(uniqueId: string) {
+  if (tiktokConnection && tiktokUniqueId === uniqueId) {
+    return tiktokConnection
+  }
+
+  if (tiktokConnection) {
+    try {
+      tiktokConnection.disconnect()
+    } catch (err) {
+      console.warn('Failed to disconnect existing TikTok connection', err)
+    }
+    tiktokConnection = null
+  }
+
+  const { WebcastPushConnection } = await import('tiktok-live-connector')
+  const connection = new WebcastPushConnection(uniqueId, {
+    enableExtendedGiftInfo: true,
+  })
+
+  connection.on('gift', (data: any) => {
+    sendTikTokEvent({
+      type: 'gift',
+      payload: {
+        user: mapTikTokUser(data),
+        gift: {
+          giftId: data.gift?.giftId || '',
+          giftName: data.gift?.name || '',
+          giftIcon: data.gift?.image || '',
+          diamondCost: data.gift?.diamondCount || 0,
+          quantity: data.repeatCount || 1,
+          totalCost: (data.gift?.diamondCount || 0) * (data.repeatCount || 1),
+        },
+        repeatCount: data.repeatCount || 1,
+        repeatEnd: data.repeatEnd ?? true,
+      },
+    })
+  })
+
+  connection.on('chat', (data: any) => {
+    sendTikTokEvent({
+      type: 'chat',
+      payload: {
+        user: mapTikTokUser(data),
+        comment: data.comment || '',
+      },
+    })
+  })
+
+  connection.on('member', (data: any) => {
+    sendTikTokEvent({
+      type: 'member',
+      payload: {
+        user: mapTikTokUser(data),
+      },
+    })
+  })
+
+  connection.on('like', (data: any) => {
+    sendTikTokEvent({
+      type: 'like',
+      payload: {
+        user: mapTikTokUser(data),
+        likeCount: data.likeCount || 1,
+        totalLikeCount: data.totalLikeCount || 0,
+      },
+    })
+  })
+
+  connection.on('connected', (state: any) => {
+    sendTikTokEvent({ type: 'connected', payload: { roomId: state?.roomId } })
+  })
+
+  connection.on('disconnected', () => {
+    sendTikTokEvent({ type: 'disconnected' })
+  })
+
+  connection.on('error', (err: Error) => {
+    sendTikTokEvent({ type: 'error', payload: { message: err.message } })
+  })
+
+  tiktokConnection = connection
+  tiktokUniqueId = uniqueId
+
+  return connection
+}
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
@@ -184,6 +306,56 @@ ipcMain.handle('show-open-dialog', async (_, options) => {
   return result
 })
 
+ipcMain.handle('tiktok-live-fetch-is-live', async (_, uniqueId: string) => {
+  const connection = await getTikTokConnection(uniqueId)
+  const result = await connection.fetchIsLive()
+  return Boolean(result?.isLive)
+})
+
+ipcMain.handle('tiktok-live-get-room-info', async (_, uniqueId: string) => {
+  const connection = await getTikTokConnection(uniqueId)
+  const info = await connection.fetchRoomInfo()
+  if (!info) return null
+  return {
+    roomId: info.roomId || '',
+    title: info.title || '',
+    owner: {
+      userId: info.owner?.userId || '',
+      userName: info.owner?.uniqueId || '',
+      userNickname: info.owner?.nickname || '',
+      userAvatar: info.owner?.avatarThumb || '',
+    },
+    viewerCount: info.viewerCount || 0,
+    likeCount: info.likeCount || 0,
+    isLive: true,
+  }
+})
+
+ipcMain.handle('tiktok-live-get-available-gifts', async (_, uniqueId: string) => {
+  const connection = await getTikTokConnection(uniqueId)
+  const gifts = await connection.fetchAvailableGifts()
+  if (!Array.isArray(gifts)) return []
+  return gifts.map((gift: any) => ({
+    giftId: gift.giftId || '',
+    giftName: gift.name || '',
+    giftIcon: gift.image || '',
+    diamondCost: gift.diamondCount || 0,
+    quantity: 1,
+    totalCost: gift.diamondCount || 0,
+  }))
+})
+
+ipcMain.handle('tiktok-live-connect', async (_, uniqueId: string) => {
+  const connection = await getTikTokConnection(uniqueId)
+  await connection.connect()
+  return { success: true }
+})
+
+ipcMain.handle('tiktok-live-disconnect', () => {
+  disconnectTikTok()
+  return { success: true }
+})
+
 // App lifecycle
 app.whenReady().then(() => {
   createMainWindow()
@@ -202,6 +374,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  disconnectTikTok()
   if (monitorWindow && !monitorWindow.isDestroyed()) {
     monitorWindow.close()
   }

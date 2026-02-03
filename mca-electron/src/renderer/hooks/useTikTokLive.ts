@@ -49,6 +49,23 @@ export interface TikTokRoomInfo {
   isLive: boolean
 }
 
+interface TikTokLiveBridge {
+  fetchIsLive: (uniqueId: string) => Promise<boolean>
+  getRoomInfo: (uniqueId: string) => Promise<TikTokRoomInfo | null>
+  getAvailableGifts: (uniqueId: string) => Promise<TikTokGift[]>
+  connect: (uniqueId: string) => Promise<{ success: boolean }>
+  disconnect: () => Promise<{ success: boolean }>
+  onEvent: (callback: (event: { type: string; payload?: any }) => void) => () => void
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      tiktokLive?: TikTokLiveBridge
+    }
+  }
+}
+
 // TikTok Live Connector Hook
 export function useTikTokLive() {
   const { toast } = useToast()
@@ -59,156 +76,49 @@ export function useTikTokLive() {
   const [availableGifts, setAvailableGifts] = useState<TikTokGift[]>([])
   const [error, setError] = useState<string | null>(null)
   
-  const connectionRef = useRef<any | null>(null)
   const uniqueIdRef = useRef<string>('')
   const giftCallbacksRef = useRef<Array<(event: TikTokGiftEvent) => void>>([])
   const chatCallbacksRef = useRef<Array<(event: TikTokChatEvent) => void>>([])
   const memberCallbacksRef = useRef<Array<(event: TikTokMemberEvent) => void>>([])
   const likeCallbacksRef = useRef<Array<(event: TikTokLikeEvent) => void>>([])
 
-  const getConnection = useCallback(async (uniqueId: string) => {
-    if (connectionRef.current && uniqueIdRef.current === uniqueId) {
-      return connectionRef.current
-    }
-
-    if (connectionRef.current) {
-      try {
-        connectionRef.current.disconnect()
-      } catch (err) {
-        console.warn('Failed to disconnect existing TikTok connection', err)
-      }
-      connectionRef.current = null
-    }
-
-    const { WebcastPushConnection } = await import('tiktok-live-connector')
-    const connection = new WebcastPushConnection(uniqueId, {
-      enableExtendedGiftInfo: true,
-    })
-
-    connection.on('gift', (data: any) => {
-      const event = {
-        user: {
-          userId: data.user?.userId || '',
-          userName: data.user?.uniqueId || '',
-          userNickname: data.user?.nickname || '',
-          userAvatar: data.user?.avatarThumb || '',
-        },
-        gift: {
-          giftId: data.gift?.giftId || '',
-          giftName: data.gift?.name || '',
-          giftIcon: data.gift?.image || '',
-          diamondCost: data.gift?.diamondCount || 0,
-          quantity: data.repeatCount || 1,
-          totalCost: (data.gift?.diamondCount || 0) * (data.repeatCount || 1),
-        },
-        repeatCount: data.repeatCount || 1,
-        repeatEnd: data.repeatEnd ?? true,
-      }
-      giftCallbacksRef.current.forEach((callback) => callback(event))
-    })
-
-    connection.on('chat', (data: any) => {
-      const event = {
-        user: {
-          userId: data.user?.userId || '',
-          userName: data.user?.uniqueId || '',
-          userNickname: data.user?.nickname || '',
-          userAvatar: data.user?.avatarThumb || '',
-        },
-        comment: data.comment || '',
-      }
-      chatCallbacksRef.current.forEach((callback) => callback(event))
-    })
-
-    connection.on('member', (data: any) => {
-      const event = {
-        user: {
-          userId: data.user?.userId || '',
-          userName: data.user?.uniqueId || '',
-          userNickname: data.user?.nickname || '',
-          userAvatar: data.user?.avatarThumb || '',
-        },
-      }
-      memberCallbacksRef.current.forEach((callback) => callback(event))
-    })
-
-    connection.on('like', (data: any) => {
-      const event = {
-        user: {
-          userId: data.user?.userId || '',
-          userName: data.user?.uniqueId || '',
-          userNickname: data.user?.nickname || '',
-          userAvatar: data.user?.avatarThumb || '',
-        },
-        likeCount: data.likeCount || 1,
-        totalLikeCount: data.totalLikeCount || 0,
-      }
-      likeCallbacksRef.current.forEach((callback) => callback(event))
-    })
-
-    connectionRef.current = connection
-    uniqueIdRef.current = uniqueId
-    return connection
-  }, [])
+  const getBridge = useCallback(() => window.electronAPI?.tiktokLive, [])
 
   // Check if user is live
   const checkIsLive = useCallback(async (uniqueId: string): Promise<boolean> => {
     try {
-      const connection = await getConnection(uniqueId)
-      const result = await connection.fetchIsLive()
-      return Boolean(result?.isLive)
+      const bridge = getBridge()
+      if (!bridge) throw new Error('TikTok Live bridge is not available')
+      return await bridge.fetchIsLive(uniqueId)
     } catch (err) {
       console.error('Failed to check if user is live:', err)
       return false
     }
-  }, [getConnection])
+  }, [getBridge])
 
   // Get room info
   const getRoomInfo = useCallback(async (uniqueId: string): Promise<TikTokRoomInfo | null> => {
     try {
-      const connection = await getConnection(uniqueId)
-      const info = await connection.fetchRoomInfo()
-      if (!info) return null
-      return {
-        roomId: info.roomId || '',
-        title: info.title || '',
-        owner: {
-          userId: info.owner?.userId || '',
-          userName: info.owner?.uniqueId || '',
-          userNickname: info.owner?.nickname || '',
-          userAvatar: info.owner?.avatarThumb || '',
-        },
-        viewerCount: info.viewerCount || 0,
-        likeCount: info.likeCount || 0,
-        isLive: true,
-      }
+      const bridge = getBridge()
+      if (!bridge) throw new Error('TikTok Live bridge is not available')
+      return await bridge.getRoomInfo(uniqueId)
     } catch (err) {
       console.error('Failed to get room info:', err)
       return null
     }
-  }, [getConnection])
+  }, [getBridge])
 
   // Get available gifts
   const getAvailableGifts = useCallback(async (uniqueId: string): Promise<TikTokGift[]> => {
     try {
-      const connection = await getConnection(uniqueId)
-      const gifts = await connection.fetchAvailableGifts()
-      if (Array.isArray(gifts)) {
-        return gifts.map((gift: any) => ({
-          giftId: gift.giftId || '',
-          giftName: gift.name || '',
-          giftIcon: gift.image || '',
-          diamondCost: gift.diamondCount || 0,
-          quantity: 1,
-          totalCost: gift.diamondCount || 0,
-        }))
-      }
-      return []
+      const bridge = getBridge()
+      if (!bridge) throw new Error('TikTok Live bridge is not available')
+      return await bridge.getAvailableGifts(uniqueId)
     } catch (err) {
       console.error('Failed to get available gifts:', err)
       return []
     }
-  }, [getConnection])
+  }, [getBridge])
 
   // Connect to TikTok Live
   const connect = useCallback(async (uniqueId: string) => {
@@ -241,8 +151,11 @@ export function useTikTokLive() {
       const gifts = await getAvailableGifts(uniqueId)
       setAvailableGifts(gifts)
 
-      const connection = await getConnection(uniqueId)
-      await connection.connect()
+      const bridge = getBridge()
+      if (!bridge) {
+        throw new Error('TikTok Live bridge is not available')
+      }
+      await bridge.connect(uniqueId)
 
       console.log('Connected to TikTok Live')
       setIsConnected(true)
@@ -257,17 +170,15 @@ export function useTikTokLive() {
       setError('Failed to connect to TikTok Live')
       setIsConnecting(false)
     }
-  }, [checkIsLive, getRoomInfo, getAvailableGifts, getConnection, isConnecting, isConnected, toast])
+  }, [checkIsLive, getRoomInfo, getAvailableGifts, getBridge, isConnecting, isConnected, toast])
 
   // Disconnect from TikTok Live
   const disconnect = useCallback(() => {
-    if (connectionRef.current) {
-      try {
-        connectionRef.current.disconnect()
-      } catch (err) {
+    const bridge = getBridge()
+    if (bridge) {
+      bridge.disconnect().catch((err) => {
         console.warn('Failed to disconnect TikTok connection', err)
-      }
-      connectionRef.current = null
+      })
     }
 
     uniqueIdRef.current = ''
@@ -275,7 +186,7 @@ export function useTikTokLive() {
     setRoomInfo(null)
     setAvailableGifts([])
     setError(null)
-  }, [])
+  }, [getBridge])
 
   // Subscribe to events
   const onGift = useCallback((callback: (event: TikTokGiftEvent) => void) => {
@@ -308,10 +219,40 @@ export function useTikTokLive() {
 
   // Cleanup on unmount
   useEffect(() => {
+    const bridge = getBridge()
+    const unsubscribe = bridge?.onEvent((event) => {
+      switch (event.type) {
+        case 'gift':
+          giftCallbacksRef.current.forEach((callback) => callback(event.payload))
+          break
+        case 'chat':
+          chatCallbacksRef.current.forEach((callback) => callback(event.payload))
+          break
+        case 'member':
+          memberCallbacksRef.current.forEach((callback) => callback(event.payload))
+          break
+        case 'like':
+          likeCallbacksRef.current.forEach((callback) => callback(event.payload))
+          break
+        case 'connected':
+          setIsConnected(true)
+          break
+        case 'disconnected':
+          setIsConnected(false)
+          break
+        case 'error':
+          setError(event.payload?.message || 'TikTok Live error')
+          break
+        default:
+          break
+      }
+    })
+
     return () => {
+      unsubscribe?.()
       disconnect()
     }
-  }, [disconnect])
+  }, [disconnect, getBridge])
 
   return {
     isConnected,

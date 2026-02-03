@@ -28,7 +28,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/activation/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/api/tiktok/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()

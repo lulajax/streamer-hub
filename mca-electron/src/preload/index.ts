@@ -41,6 +41,21 @@ const electronAPI = {
     ipcRenderer.on('gift-request-captured', (_, url) => callback(url))
     return () => ipcRenderer.off('gift-request-captured', callback)
   },
+
+  // TikTok Live
+  tiktokLive: {
+    fetchIsLive: (uniqueId: string) => ipcRenderer.invoke('tiktok-live-fetch-is-live', uniqueId),
+    getRoomInfo: (uniqueId: string) => ipcRenderer.invoke('tiktok-live-get-room-info', uniqueId),
+    getAvailableGifts: (uniqueId: string) =>
+      ipcRenderer.invoke('tiktok-live-get-available-gifts', uniqueId),
+    connect: (uniqueId: string) => ipcRenderer.invoke('tiktok-live-connect', uniqueId),
+    disconnect: () => ipcRenderer.invoke('tiktok-live-disconnect'),
+    onEvent: (callback: (event: any) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, event: any) => callback(event)
+      ipcRenderer.on('tiktok-live-event', handler)
+      return () => ipcRenderer.off('tiktok-live-event', handler)
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

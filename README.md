@@ -169,17 +169,6 @@ POST   /api/auth/forgot-password       # 忘记密码
 POST   /api/auth/reset-password        # 重置密码
 ```
 
-### TikTok 直播相关
-
-```
-GET    /api/tiktok/is-live/{uniqueId}  # 检查是否在线
-GET    /api/tiktok/room-info/{uniqueId} # 获取房间信息
-GET    /api/tiktok/room-id/{uniqueId}   # 获取房间ID
-GET    /api/tiktok/gifts/{roomId}       # 获取可用礼物
-GET    /api/tiktok/websocket-url        # 获取WebSocket连接
-GET    /api/tiktok/connect-info/{uniqueId} # 获取完整连接信息
-```
-
 ### 礼物相关
 
 ```
@@ -228,8 +217,6 @@ jwt:
 mca:
   activation:
     default-expiry-days: 365
-  tiktok:
-    sign-api-key: ""  # Optional: Euler Stream API key
 ```
 
 ## 开发指南
