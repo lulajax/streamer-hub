@@ -9,19 +9,39 @@ import { useToast } from '@/hooks/use-toast'
 import {
   Settings2,
   Globe,
-  Moon,
   Bell,
   Save,
   Monitor,
   Info,
   Check,
   RefreshCw,
+  Crown,
+  KeyRound,
 } from 'lucide-react'
+
+const subscriptionLabelMap = {
+  FREE: 'Free',
+  BASIC: 'Basic',
+  PRO: 'Pro',
+  ENTERPRISE: 'Enterprise',
+} as const
+
+const subscriptionDescriptions = {
+  FREE: 'Basic access',
+  BASIC: 'Starter features for small teams',
+  PRO: 'Advanced controls and analytics',
+  ENTERPRISE: 'All features plus priority support',
+} as const
 
 export function Settings() {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
-  const { settings, setSettings, activation } = useStore()
+  const { settings, setSettings, activation, user } = useStore()
+
+  const subscriptionType = user?.subscriptionType ?? 'FREE'
+  const subscriptionExpiresAt = user?.subscriptionExpiresAt
+  const activatedAt = user?.activatedAt
+  const activationCode = user?.activationCode ?? activation.activationCode
 
   const handleSaveSettings = () => {
     toast({
@@ -151,6 +171,76 @@ export function Settings() {
 
         {/* About & System */}
         <div className="space-y-6">
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400" />
+                Subscription
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-slate-800 rounded-lg">
+                <div>
+                  <p className="text-white font-medium">
+                    {subscriptionLabelMap[subscriptionType]}
+                  </p>
+                  <p className="text-slate-400 text-sm">
+                    {subscriptionDescriptions[subscriptionType]}
+                  </p>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className={
+                    subscriptionType === 'FREE'
+                      ? 'bg-slate-700 text-slate-200'
+                      : 'bg-amber-500/20 text-amber-300'
+                  }
+                >
+                  {subscriptionType}
+                </Badge>
+              </div>
+
+              <div className="p-4 bg-slate-800 rounded-lg space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Status</span>
+                  <span className="text-white">
+                    {subscriptionType === 'FREE'
+                      ? 'Free'
+                      : subscriptionExpiresAt
+                        ? 'Active'
+                        : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Activated On</span>
+                  <span className="text-white">
+                    {activatedAt ? new Date(activatedAt).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Expires</span>
+                  <span className="text-white">
+                    {subscriptionExpiresAt
+                      ? new Date(subscriptionExpiresAt).toLocaleDateString()
+                      : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-slate-800 rounded-lg">
+                <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                  <KeyRound className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-medium">Activation Code</p>
+                  <p className="text-slate-400 text-sm">
+                    {activationCode ? activationCode : 'Not set'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">

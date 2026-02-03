@@ -190,6 +190,7 @@ export interface UserDTO {
   subscriptionType: 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE'
   subscriptionExpiresAt?: number
   activatedAt?: number
+  activationCode?: string
   lastLoginAt?: number
   createdAt: number
   accessToken?: string
