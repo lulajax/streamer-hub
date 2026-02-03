@@ -6,13 +6,25 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { Radio, History, Link2, ExternalLink, CheckCircle2, XCircle, Sparkles } from 'lucide-react'
-import type { Room } from '@/types'
+import { apiFetch } from '@/lib/api'
+import { normalizeUserDates } from '@/lib/user'
+import {
+  Radio,
+  History,
+  Link2,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  KeyRound,
+  LogOut,
+} from 'lucide-react'
+import type { ApiResponse, Room, UserDTO } from '@/types'
 
 export function RoomConnection() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { recentRooms, setCurrentRoom, addRecentRoom, activation, user } = useStore()
+  const { recentRooms, setCurrentRoom, addRecentRoom, activation, user, setUser, logout } = useStore()
   const subscriptionExpiresAt = user?.subscriptionExpiresAt
   const subscriptionType = user?.subscriptionType ?? 'FREE'
   const isSubscriptionActive =
@@ -20,6 +32,8 @@ export function RoomConnection() {
     (subscriptionExpiresAt ? Date.now() < subscriptionExpiresAt : false)
   const [roomInput, setRoomInput] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
+  const [activationCode, setActivationCode] = useState('')
+  const [isRedeeming, setIsRedeeming] = useState(false)
 
   const extractRoomId = (input: string): string | null => {
     // Extract from URL like https://www.tiktok.com/@username/live
@@ -32,6 +46,70 @@ export function RoomConnection() {
       return input
     }
     return null
+  }
+
+  const handleRedeem = async () => {
+    let code = activationCode.trim().toUpperCase().replace(/\s+/g, '')
+    if (!code) {
+      toast({
+        title: t('error'),
+        description: 'Please enter activation code',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (/^(BAS|PRO|ENT)[A-Z0-9]{12}$/.test(code)) {
+      code = `${code.slice(0, 3)}-${code.slice(3)}`
+    }
+    if (!/^(BAS|PRO|ENT)-[A-Z0-9]{12}$/.test(code)) {
+      toast({
+        title: t('error'),
+        description: 'Invalid activation code format',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!user?.accessToken) {
+      toast({
+        title: t('error'),
+        description: 'Please login again',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsRedeeming(true)
+    try {
+      const data = await apiFetch<ApiResponse<UserDTO>>('/auth/activate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        json: { activationCode: code },
+      })
+      if (data?.success) {
+        setUser(normalizeUserDates(data.data))
+        setActivationCode('')
+        toast({
+          title: t('success'),
+          description: 'Premium activated successfully!',
+        })
+      } else {
+        toast({
+          title: t('error'),
+          description: data?.error || 'Activation failed',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: t('error'),
+        description: 'Network error. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsRedeeming(false)
+    }
   }
 
   const handleConnect = async () => {
@@ -110,17 +188,32 @@ export function RoomConnection() {
     })
   }
 
+  const handleLogout = () => {
+    logout()
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
+        <div className="flex items-start justify-between mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
               <Radio className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">{t('connectRoom')}</h1>
-          <p className="text-slate-400">Enter TikTok live room ID to start</p>
+          <div className="flex-1 text-center">
+            <h1 className="text-3xl font-bold text-white mb-2">{t('connectRoom')}</h1>
+            <p className="text-slate-400">Enter TikTok live room ID to start</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="text-slate-400 hover:text-amber-400 hover:bg-amber-500/10"
+          >
+            <LogOut className="w-4 h-4 mr-1" />
+            {t('logout')}
+          </Button>
         </div>
 
         <Card className="bg-slate-800/50 border-slate-700 backdrop-blur mb-6">
@@ -157,6 +250,39 @@ export function RoomConnection() {
             </div>
           </CardContent>
         </Card>
+
+        {!isSubscriptionActive && (
+          <Card className="bg-slate-800/50 border-slate-700 backdrop-blur mb-6">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-amber-400" />
+                Redeem Activation Code
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Enter your code to renew your subscription
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                placeholder="BAS-XXXXXXXXXXXX"
+                value={activationCode}
+                onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+                className="bg-slate-900 border-slate-600 text-white text-center tracking-widest font-mono text-lg"
+                maxLength={16}
+              />
+              <Button
+                onClick={handleRedeem}
+                disabled={isRedeeming}
+                className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+              >
+                {isRedeeming ? t('loading') : 'Redeem Code'}
+              </Button>
+              <p className="text-slate-500 text-xs text-center">
+                Format: BAS-XXXXXXXXXXXX, PRO-XXXXXXXXXXXX, or ENT-XXXXXXXXXXXX
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {recentRooms.length > 0 && (
           <Card className="bg-slate-800/50 border-slate-700 backdrop-blur">

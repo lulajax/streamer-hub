@@ -14,8 +14,9 @@ const electronAPI = {
     open: (roomId: string) => ipcRenderer.invoke('open-monitor', roomId),
     close: () => ipcRenderer.invoke('close-monitor'),
     onClosed: (callback: () => void) => {
-      ipcRenderer.on('monitor-closed', callback)
-      return () => ipcRenderer.off('monitor-closed', callback)
+      const handler = (_: Electron.IpcRendererEvent) => callback()
+      ipcRenderer.on('monitor-closed', handler)
+      return () => ipcRenderer.off('monitor-closed', handler)
     },
   },
 
@@ -38,8 +39,9 @@ const electronAPI = {
 
   // Gift data capture
   onGiftRequestCaptured: (callback: (url: string) => void) => {
-    ipcRenderer.on('gift-request-captured', (_, url) => callback(url))
-    return () => ipcRenderer.off('gift-request-captured', callback)
+    const handler = (_: Electron.IpcRendererEvent, url: string) => callback(url)
+    ipcRenderer.on('gift-request-captured', handler)
+    return () => ipcRenderer.off('gift-request-captured', handler)
   },
 
   // TikTok Live

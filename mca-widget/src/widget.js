@@ -12,7 +12,6 @@
     'use strict';
 
     // Configuration
-    const WS_URL = 'ws://localhost:8080/ws/room';
     const RECONNECT_DELAYS = [1000, 2000, 4000, 8000];
     const HEARTBEAT_INTERVAL = 30000;
 
@@ -20,6 +19,10 @@
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('roomId');
     const token = urlParams.get('token');
+    const widgetMode = urlParams.get('mode') || 'preset';
+    const apiBase = resolveApiBase(urlParams);
+    const ROOM_WS_URL = buildWsUrl(apiBase, '/ws/room');
+    const useWidgetTokenMode = !roomId && !!token;
 
     // State
     let ws = null;
@@ -27,9 +30,11 @@
     let reconnectTimeout = null;
     let heartbeatInterval = null;
     let isJoined = false;
+    let widgetWsConnected = false;
     let lastSeq = 0;
     let currentMode = null;
     let currentState = null;
+    let currentWidgetSettings = null;
 
     // DOM Elements
     const app = document.getElementById('app');
@@ -44,18 +49,22 @@
     function init() {
         log('info', 'Initializing MCA Widget');
         log('info', 'Room ID:', roomId);
-        
-        if (!roomId) {
-            showError('Missing roomId parameter in URL');
+
+        if (roomId) {
+            if (!token) {
+                showError('Missing token parameter in URL');
+                return;
+            }
+            connect();
             return;
         }
 
-        if (!token) {
-            showError('Missing token parameter in URL');
+        if (token) {
+            connectWidgetSocket();
             return;
         }
 
-        connect();
+        showError('Missing roomId or token parameter in URL');
     }
 
     // Connect to WebSocket
@@ -64,7 +73,7 @@
         showLoading('Connecting...');
 
         try {
-            ws = new WebSocket(WS_URL);
+            ws = new WebSocket(ROOM_WS_URL);
 
             ws.onopen = handleOpen;
             ws.onmessage = handleMessage;
@@ -73,8 +82,72 @@
 
         } catch (err) {
             log('error', 'Failed to create WebSocket:', err);
-            scheduleReconnect();
+            scheduleReconnect(connect);
         }
+    }
+
+    // Connect to Widget WebSocket (token mode)
+    function connectWidgetSocket() {
+        log('info', 'Connecting to Widget WebSocket...');
+        showLoading('Connecting...');
+
+        const widgetWsUrl = buildWsUrl(
+            apiBase,
+            `/ws/widget/${encodeURIComponent(token)}`,
+            { mode: widgetMode }
+        );
+
+        try {
+            ws = new WebSocket(widgetWsUrl);
+
+            ws.onopen = handleWidgetOpen;
+            ws.onmessage = handleWidgetMessage;
+            ws.onclose = handleWidgetClose;
+            ws.onerror = handleWidgetError;
+        } catch (err) {
+            log('error', 'Failed to create Widget WebSocket:', err);
+            scheduleReconnect(connectWidgetSocket);
+        }
+    }
+
+    function handleWidgetOpen() {
+        log('info', 'Widget WebSocket connected');
+        reconnectAttempt = 0;
+        widgetWsConnected = true;
+    }
+
+    function handleWidgetMessage(event) {
+        try {
+            const message = JSON.parse(event.data);
+            log('debug', 'Received widget message:', message.type);
+
+            switch (message.type) {
+                case 'widget_data':
+                    handleWidgetData(message);
+                    break;
+                case 'error':
+                    log('error', 'Widget server error:', message.error);
+                    showError(message.error);
+                    break;
+                default:
+                    log('debug', 'Ignoring widget message type:', message.type);
+            }
+        } catch (err) {
+            log('error', 'Failed to parse widget message:', err);
+        }
+    }
+
+    function handleWidgetClose(event) {
+        log('info', 'Widget WebSocket closed:', event.code, event.reason);
+        widgetWsConnected = false;
+
+        if (event.code !== 1000 && event.code !== 1001) {
+            scheduleReconnect(connectWidgetSocket);
+        }
+    }
+
+    function handleWidgetError(error) {
+        log('error', 'Widget WebSocket error:', error);
     }
 
     // Handle WebSocket open
@@ -141,7 +214,7 @@
         stopHeartbeat();
 
         if (event.code !== 1000 && event.code !== 1001) {
-            scheduleReconnect();
+            scheduleReconnect(connect);
         }
     }
 
@@ -192,8 +265,18 @@
         playEventAnimation(message.payload);
     }
 
+    // Handle widget data (token mode)
+    function handleWidgetData(message) {
+        const data = message.payload;
+        currentWidgetSettings = parseWidgetSettings(data?.widgetSettings);
+        currentState = normalizeWidgetData(data, currentWidgetSettings);
+        currentMode = currentState?.mode;
+
+        render();
+    }
+
     // Schedule reconnection
-    function scheduleReconnect() {
+    function scheduleReconnect(connectFn) {
         const delay = RECONNECT_DELAYS[Math.min(reconnectAttempt, RECONNECT_DELAYS.length - 1)];
         reconnectAttempt++;
         
@@ -201,7 +284,7 @@
         showLoading(`Reconnecting... (${reconnectAttempt})`);
         
         reconnectTimeout = setTimeout(() => {
-            connect();
+            connectFn();
         }, delay);
     }
 
@@ -465,8 +548,16 @@
 
     // Render connection status indicator
     function renderConnectionStatus() {
-        const statusClass = isJoined ? 'connected' : ws?.readyState === WebSocket.CONNECTING ? 'connecting' : 'disconnected';
-        const statusText = isJoined ? 'Connected' : ws?.readyState === WebSocket.CONNECTING ? 'Connecting...' : 'Disconnected';
+        let statusClass = 'disconnected';
+        let statusText = 'Disconnected';
+
+        if (useWidgetTokenMode) {
+            statusClass = widgetWsConnected ? 'connected' : ws?.readyState === WebSocket.CONNECTING ? 'connecting' : 'disconnected';
+            statusText = widgetWsConnected ? 'Connected' : ws?.readyState === WebSocket.CONNECTING ? 'Connecting...' : 'Disconnected';
+        } else {
+            statusClass = isJoined ? 'connected' : ws?.readyState === WebSocket.CONNECTING ? 'connecting' : 'disconnected';
+            statusText = isJoined ? 'Connected' : ws?.readyState === WebSocket.CONNECTING ? 'Connecting...' : 'Disconnected';
+        }
         
         return `
             <div class="connection-status">
@@ -521,7 +612,151 @@
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
+    // Resolve API base URL
+    function resolveApiBase(params) {
+        const paramBase = params.get('apiBase') || params.get('api');
+        if (paramBase) {
+            return trimTrailingSlash(paramBase);
+        }
+
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+
+        if (port && port !== '80' && port !== '443') {
+            if (port !== '8080') {
+                return `${protocol}//${hostname}:8080/api`;
+            }
+        }
+
+        return `${protocol}//${window.location.host}/api`;
+    }
+
+    // Build WebSocket URL from API base
+    function buildWsUrl(baseUrl, wsPath, params) {
+        try {
+            const apiUrl = new URL(baseUrl);
+            apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+            const basePath = apiUrl.pathname.replace(/\/$/, '');
+            const path = wsPath.startsWith('/') ? wsPath : `/${wsPath}`;
+            apiUrl.pathname = `${basePath}${path}`;
+            apiUrl.search = '';
+            if (params) {
+                Object.entries(params).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null && value !== '') {
+                        apiUrl.searchParams.set(key, value);
+                    }
+                });
+            }
+            apiUrl.hash = '';
+            return apiUrl.toString();
+        } catch (err) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const path = wsPath && wsPath.startsWith('/') ? wsPath : `/ws/room`;
+            return `${protocol}//${window.location.host}${path}`;
+        }
+    }
+
+    function trimTrailingSlash(url) {
+        return url.endsWith('/') ? url.slice(0, -1) : url;
+    }
+
+    function parseWidgetSettings(settingsJson) {
+        if (!settingsJson) return null;
+        try {
+            return JSON.parse(settingsJson);
+        } catch (err) {
+            log('warn', 'Failed to parse widget settings JSON:', err);
+            return null;
+        }
+    }
+
+    function normalizeWidgetData(data, settings) {
+        if (!data) return null;
+
+        const mode = mapGameMode(data.gameMode);
+        const anchors = normalizeAnchors(data.anchors, settings);
+        const progress = computeProgress(mode, anchors);
+
+        return {
+            mode,
+            anchors,
+            progress,
+            countdown: data.countdown,
+            combo: data.combo
+        };
+    }
+
+    function mapGameMode(gameMode) {
+        if (!gameMode) return null;
+        const value = String(gameMode).toUpperCase();
+        switch (value) {
+            case 'STICKER':
+                return 'sticker_dance';
+            case 'PK':
+                return 'attack_defense';
+            case 'FREE':
+                return 'free';
+            default:
+                return null;
+        }
+    }
+
+    function normalizeAnchors(anchors, settings) {
+        if (!Array.isArray(anchors)) {
+            return [];
+        }
+
+        let mapped = anchors.map((anchor) => ({
+            name: anchor?.name || 'Unknown',
+            avatar: anchor?.avatarUrl || anchor?.avatar || '',
+            score: anchor?.totalScore ?? anchor?.score ?? 0,
+            isActive: anchor?.isActive !== false,
+            displayOrder: anchor?.displayOrder
+        }));
+
+        const maxItems = settings?.display?.maxItems;
+        if (maxItems && Number.isFinite(maxItems)) {
+            mapped = mapped.slice(0, Math.max(0, maxItems));
+        }
+
+        return mapped;
+    }
+
+    function computeProgress(mode, anchors) {
+        if (mode !== 'attack_defense') {
+            return 0;
+        }
+
+        if (!anchors || anchors.length < 2) {
+            return 0.5;
+        }
+
+        const mid = Math.ceil(anchors.length / 2);
+        const defenders = anchors.slice(0, mid);
+        const attackers = anchors.slice(mid);
+        const defenderScore = defenders.reduce((sum, a) => sum + (a.score || 0), 0);
+        const attackerScore = attackers.reduce((sum, a) => sum + (a.score || 0), 0);
+        const total = defenderScore + attackerScore;
+
+        if (total === 0) {
+            return 0.5;
+        }
+
+        return defenderScore / total;
+    }
+
     // Start
     init();
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (ws) {
+            ws.close();
+        }
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+        }
+    });
 
 })();

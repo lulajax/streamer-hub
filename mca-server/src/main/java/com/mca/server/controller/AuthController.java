@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.util.StringUtils;
 
 @RestController
 @RequestMapping("/auth")
@@ -23,11 +24,19 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
         // Set device info from request headers if not provided
-        if (request.getDeviceId() == null) {
+        if (!StringUtils.hasText(request.getDeviceId())) {
             request.setDeviceId(httpRequest.getHeader("X-Device-Id"));
         }
-        if (request.getDeviceName() == null) {
+        if (!StringUtils.hasText(request.getDeviceName())) {
             request.setDeviceName(httpRequest.getHeader("X-Device-Name"));
+        }
+        if (!StringUtils.hasText(request.getDeviceId())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Device ID is required"));
+        }
+        if (!StringUtils.hasText(request.getDeviceName())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Device name is required"));
         }
         return ResponseEntity.ok(authService.register(request));
     }
@@ -42,11 +51,19 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         // Set device info from request headers if not provided
-        if (request.getDeviceId() == null) {
+        if (!StringUtils.hasText(request.getDeviceId())) {
             request.setDeviceId(httpRequest.getHeader("X-Device-Id"));
         }
-        if (request.getDeviceName() == null) {
+        if (!StringUtils.hasText(request.getDeviceName())) {
             request.setDeviceName(httpRequest.getHeader("X-Device-Name"));
+        }
+        if (!StringUtils.hasText(request.getDeviceId())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Device ID is required"));
+        }
+        if (!StringUtils.hasText(request.getDeviceName())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Device name is required"));
         }
         return ResponseEntity.ok(authService.login(request));
     }

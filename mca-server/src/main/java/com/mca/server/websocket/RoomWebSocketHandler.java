@@ -2,6 +2,7 @@ package com.mca.server.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mca.server.service.WidgetUpdatePublisher;
 import com.mca.server.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
     
     private final ObjectMapper objectMapper;
     private final JwtUtil jwtUtil;
+    private final WidgetUpdatePublisher widgetUpdatePublisher;
     
     // Room management - thread safe
     // roomId -> ProducerSession (only one producer per room)
@@ -229,6 +231,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
         
         // Broadcast to all consumers
         broadcastToConsumers(roomId, message);
+        widgetUpdatePublisher.publishForRoom(roomId);
         
         log.debug("State broadcast to room: {}, seq: {}", roomId, seq);
     }
@@ -256,6 +259,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
         
         // Broadcast event to all consumers
         broadcastToConsumers(roomId, message);
+        widgetUpdatePublisher.publishForRoom(roomId);
         
         log.debug("Event broadcast to room: {}", roomId);
     }

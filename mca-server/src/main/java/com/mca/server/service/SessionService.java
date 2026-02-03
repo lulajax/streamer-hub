@@ -25,6 +25,7 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final RoomRepository roomRepository;
     private final PresetRepository presetRepository;
+    private final WidgetUpdatePublisher widgetUpdatePublisher;
     
     @Transactional
     public SessionDTO createSession(String roomId, String presetId) {
@@ -54,6 +55,7 @@ public class SessionService {
         Session saved = sessionRepository.save(session);
 
         log.info("Session created: {} for room: {} with preset: {}", saved.getId(), roomId, presetId);
+        widgetUpdatePublisher.publishForSession(saved.getId());
 
         return SessionDTO.fromEntity(saved);
     }
@@ -92,9 +94,10 @@ public class SessionService {
         }
         
         Session saved = sessionRepository.save(session);
-        
+
         log.info("Session started: {}", sessionId);
-        
+        widgetUpdatePublisher.publishForSession(sessionId);
+
         return SessionDTO.fromEntity(saved);
     }
     
@@ -111,9 +114,10 @@ public class SessionService {
         session.setPausedAt(LocalDateTime.now());
         
         Session saved = sessionRepository.save(session);
-        
+
         log.info("Session paused: {}", sessionId);
-        
+        widgetUpdatePublisher.publishForSession(sessionId);
+
         return SessionDTO.fromEntity(saved);
     }
     
@@ -126,9 +130,10 @@ public class SessionService {
         session.setEndedAt(LocalDateTime.now());
         
         Session saved = sessionRepository.save(session);
-        
+
         log.info("Session ended: {}", sessionId);
-        
+        widgetUpdatePublisher.publishForSession(sessionId);
+
         return SessionDTO.fromEntity(saved);
     }
     
@@ -140,9 +145,10 @@ public class SessionService {
         session.setCurrentRound(session.getCurrentRound() + 1);
         
         Session saved = sessionRepository.save(session);
-        
+
         log.info("Session {} advanced to round {}", sessionId, saved.getCurrentRound());
-        
+        widgetUpdatePublisher.publishForSession(sessionId);
+
         return SessionDTO.fromEntity(saved);
     }
     

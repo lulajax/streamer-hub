@@ -4,20 +4,25 @@ import path from 'path'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 
+const projectRoot = __dirname
+const rendererRoot = path.join(projectRoot, 'src/renderer')
+
 export default defineConfig({
   plugins: [
     react(),
     electron([
       {
-        entry: 'src/main/index.ts',
+        entry: path.join(projectRoot, 'src/main/index.ts'),
         onstart(options) {
-          options.startup()
+          const env = { ...process.env }
+          delete env.ELECTRON_RUN_AS_NODE
+          options.startup(['.', '--no-sandbox'], { env })
         },
         vite: {
           build: {
             sourcemap: true,
             minify: false,
-            outDir: 'dist/main',
+            outDir: path.join(projectRoot, 'dist/main'),
             rollupOptions: {
               external: ['electron'],
             },
@@ -25,7 +30,7 @@ export default defineConfig({
         },
       },
       {
-        entry: 'src/preload/index.ts',
+        entry: path.join(projectRoot, 'src/preload/index.ts'),
         onstart(options) {
           options.reload()
         },
@@ -33,7 +38,7 @@ export default defineConfig({
           build: {
             sourcemap: true,
             minify: false,
-            outDir: 'dist/preload',
+            outDir: path.join(projectRoot, 'dist/preload'),
             rollupOptions: {
               external: ['electron'],
             },
@@ -45,13 +50,13 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src/renderer'),
+      '@': rendererRoot,
     },
   },
-  root: path.join(__dirname, 'src/renderer'),
+  root: rendererRoot,
   base: './',
   build: {
-    outDir: path.join(__dirname, 'dist/renderer'),
+    outDir: path.join(projectRoot, 'dist/renderer'),
     emptyOutDir: true,
     sourcemap: true,
   },

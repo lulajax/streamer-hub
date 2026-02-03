@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
+import { apiFetch } from '@/lib/api'
+import { normalizeUserDates } from '@/lib/user'
+import type { ApiResponse, UserDTO } from '@/types'
 import { Mail, Lock, User, Eye, EyeOff, Sparkles, Loader2 } from 'lucide-react'
 
 interface AuthLayoutProps {
@@ -35,24 +38,6 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
   const [activationCode, setActivationCode] = useState('')
   const [showActivation, setShowActivation] = useState(false)
 
-  const parseDateToMs = (value?: string) => {
-    if (!value) return undefined
-    const normalized = value.includes('T') ? value : value.replace(' ', 'T')
-    const date = new Date(normalized)
-    return Number.isNaN(date.getTime()) ? undefined : date.getTime()
-  }
-
-  const updateUserDates = (payload: any) => {
-    if (!payload) return payload
-    return {
-      ...payload,
-      activatedAt: parseDateToMs(payload.activatedAt),
-      subscriptionExpiresAt: payload.subscriptionExpiresAt
-        ? parseDateToMs(payload.subscriptionExpiresAt)
-        : undefined,
-    }
-  }
-
   const handleLogin = async () => {
     if (!loginEmail || !loginPassword) {
       toast({
@@ -66,19 +51,16 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
     setIsLoading(true)
     
     try {
-      const response = await fetch('http://localhost:8080/api/auth/login', {
+      const data = await apiFetch<ApiResponse<UserDTO>>('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        json: {
           email: loginEmail,
           password: loginPassword,
-        }),
+        },
       })
       
-      const data = await response.json()
-      
       if (data.success) {
-        setUser(updateUserDates(data.data))
+        setUser(normalizeUserDates(data.data))
         
         // Check if user needs activation
         if (!data.data.isActivated) {
@@ -141,18 +123,15 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
     setIsLoading(true)
     
     try {
-      const response = await fetch('http://localhost:8080/api/auth/register', {
+      const data = await apiFetch<ApiResponse<UserDTO>>('/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        json: {
           email: registerEmail,
           password: registerPassword,
           confirmPassword: registerConfirmPassword,
           nickname: registerNickname || registerEmail.split('@')[0],
-        }),
+        },
       })
-      
-      const data = await response.json()
       
       if (data.success) {
         toast({
@@ -193,21 +172,18 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
     
     try {
       const user = useStore.getState().user
-      const response = await fetch('http://localhost:8080/api/auth/activate', {
+      const data = await apiFetch<ApiResponse<UserDTO>>('/auth/activate', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.accessToken}`,
         },
-        body: JSON.stringify({
+        json: {
           activationCode: activationCode.toUpperCase(),
-        }),
+        },
       })
       
-      const data = await response.json()
-      
       if (data.success) {
-        setUser(updateUserDates(data.data))
+        setUser(normalizeUserDates(data.data))
         toast({
           title: 'Success',
           description: 'Premium activated successfully!',

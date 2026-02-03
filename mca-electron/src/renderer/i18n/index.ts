@@ -21,6 +21,8 @@ const resources = {
       success: '成功',
       warning: '警告',
       info: '提示',
+      switchRoom: '切换直播间',
+      logout: '退出登录',
 
       // Navigation
       dashboard: '控制台',
@@ -180,6 +182,8 @@ const resources = {
       success: 'Success',
       warning: 'Warning',
       info: 'Info',
+      switchRoom: 'Switch Room',
+      logout: 'Logout',
 
       dashboard: 'Dashboard',
       stickerMode: 'Sticker Mode',
@@ -327,6 +331,8 @@ const resources = {
       success: 'Thành công',
       warning: 'Cảnh báo',
       info: 'Thông tin',
+      switchRoom: 'Chuyển phòng',
+      logout: 'Đăng xuất',
 
       dashboard: 'Bảng điều khiển',
       stickerMode: 'Chế độ Sticker',
@@ -474,6 +480,8 @@ const resources = {
       success: 'สำเร็จ',
       warning: 'คำเตือน',
       info: 'ข้อมูล',
+      switchRoom: 'เปลี่ยนห้อง',
+      logout: 'ออกจากระบบ',
 
       dashboard: 'แผงควบคุม',
       stickerMode: 'โหมดสติกเกอร์',

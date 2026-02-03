@@ -1,6 +1,7 @@
 package com.mca.server.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.mca.server.entity.Preset;
 import com.mca.server.entity.Session;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +20,7 @@ public class SessionDTO {
     private String roomId;
     private String presetId;
     private String presetName;
-    private Session.GameMode gameMode;
+    private Preset.GameMode gameMode;
     private Session.SessionStatus status;
     private Integer currentRound;
     private Long totalGifts;

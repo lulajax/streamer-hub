@@ -93,7 +93,7 @@ mca:
     decay-check-interval: 5000  # 5 seconds
     auto-save-interval: 30000   # 30 seconds
   widget:
-    base-url: http://192.168.84.30:3000
+    base-url: http://192.168.84.30:8080/widget
   app:
     frontend-url: http://192.168.84.30:5173
   tiktok:

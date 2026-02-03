@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useStore } from '@/stores/useStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -5,7 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { apiFetch } from '@/lib/api'
+import { normalizeUserDates } from '@/lib/user'
 import {
   Settings2,
   Globe,
@@ -18,6 +22,7 @@ import {
   Crown,
   KeyRound,
 } from 'lucide-react'
+import type { ApiResponse, UserDTO } from '@/types'
 
 const subscriptionLabelMap = {
   FREE: 'Free',
@@ -36,12 +41,110 @@ const subscriptionDescriptions = {
 export function Settings() {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
-  const { settings, setSettings, activation, user } = useStore()
+  const { settings, setSettings, activation, user, setUser } = useStore()
+  const [systemInfo, setSystemInfo] = useState('Electron')
+  const [activationCodeInput, setActivationCodeInput] = useState('')
+  const [isRedeeming, setIsRedeeming] = useState(false)
 
   const subscriptionType = user?.subscriptionType ?? 'FREE'
   const subscriptionExpiresAt = user?.subscriptionExpiresAt
   const activatedAt = user?.activatedAt
   const activationCode = user?.activationCode ?? activation.activationCode
+
+  useEffect(() => {
+    let isActive = true
+    const loadSystemInfo = async () => {
+      try {
+        const info = await window.electronAPI?.app?.getSystemInfo?.()
+        if (!isActive || !info) return
+
+        if (typeof info === 'string') {
+          setSystemInfo(info)
+          return
+        }
+
+        if (typeof info === 'object') {
+          const record = info as Record<string, unknown>
+          const platform = typeof record.platform === 'string' ? record.platform : 'Unknown'
+          const arch = typeof record.arch === 'string' ? record.arch : 'Unknown'
+          const version = typeof record.version === 'string' ? record.version : 'Unknown'
+          const hostname = typeof record.hostname === 'string' ? record.hostname : 'Unknown'
+          setSystemInfo(`${platform} • ${arch} • ${version} • ${hostname}`)
+        }
+      } catch {
+        // Keep fallback value
+      }
+    }
+
+    loadSystemInfo()
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  const handleRedeemActivationCode = async () => {
+    let code = activationCodeInput.trim().toUpperCase().replace(/\s+/g, '')
+    if (!code) {
+      toast({
+        title: t('error'),
+        description: 'Please enter activation code',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (/^(BAS|PRO|ENT)[A-Z0-9]{12}$/.test(code)) {
+      code = `${code.slice(0, 3)}-${code.slice(3)}`
+    }
+    if (!/^(BAS|PRO|ENT)-[A-Z0-9]{12}$/.test(code)) {
+      toast({
+        title: t('error'),
+        description: 'Invalid activation code format',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!user?.accessToken) {
+      toast({
+        title: t('error'),
+        description: 'Please login again',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsRedeeming(true)
+    try {
+      const data = await apiFetch<ApiResponse<UserDTO>>('/auth/activate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        json: { activationCode: code },
+      })
+      if (data?.success) {
+        setUser(normalizeUserDates(data.data))
+        setActivationCodeInput('')
+        toast({
+          title: t('success'),
+          description: 'Premium activated successfully!',
+        })
+      } else {
+        toast({
+          title: t('error'),
+          description: data?.error || 'Activation failed',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: t('error'),
+        description: 'Network error. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsRedeeming(false)
+    }
+  }
 
   const handleSaveSettings = () => {
     toast({
@@ -233,8 +336,21 @@ export function Settings() {
                 </div>
                 <div className="flex-1">
                   <p className="text-white font-medium">Activation Code</p>
-                  <p className="text-slate-400 text-sm">
-                    {activationCode ? activationCode : 'Not set'}
+                  <Input
+                    placeholder={activationCode || 'BAS-XXXXXXXXXXXX'}
+                    value={activationCodeInput}
+                    onChange={(e) => setActivationCodeInput(e.target.value.toUpperCase())}
+                    className="mt-2 bg-slate-900 border-slate-600 text-white text-center tracking-widest font-mono text-sm"
+                  />
+                  <Button
+                    onClick={handleRedeemActivationCode}
+                    disabled={isRedeeming}
+                    className="mt-3 w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                  >
+                    {isRedeeming ? t('loading') : 'Redeem Code'}
+                  </Button>
+                  <p className="text-slate-500 text-xs mt-2 text-center">
+                    Format: BAS-XXXXXXXXXXXX, PRO-XXXXXXXXXXXX, or ENT-XXXXXXXXXXXX
                   </p>
                 </div>
               </div>
@@ -304,7 +420,7 @@ export function Settings() {
               <div className="p-4 bg-slate-800 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Platform</span>
-                  <span className="text-white">{window.electronAPI?.app?.getSystemInfo?.() || 'Electron'}</span>
+                  <span className="text-white">{systemInfo}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Architecture</span>
@@ -333,6 +449,3 @@ export function Settings() {
     </div>
   )
 }
-
-// Add Badge import
-import { Badge } from '@/components/ui/badge'

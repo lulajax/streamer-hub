@@ -26,19 +26,19 @@ import java.util.Optional;
 public class JwtSubscriptionFilter extends OncePerRequestFilter {
 
     private static final List<String> PUBLIC_PATHS = List.of(
-            "/api/auth/",
-            "/api/activation/",
-            "/api/public/",
+            "/auth/",
+            "/activation/",
+            "/public/",
             "/ws/",
             "/actuator/"
     );
 
     private static final List<String> SUBSCRIPTION_PATHS = List.of(
-            "/api/sessions/",
-            "/api/gifts/",
-            "/api/widgets/",
-            "/api/reports/",
-            "/api/presets/"
+            "/sessions/",
+            "/gifts/",
+            "/widget/",
+            "/reports/",
+            "/presets/"
     );
 
     private final JwtUtil jwtUtil;
@@ -51,7 +51,7 @@ public class JwtSubscriptionFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String path = request.getRequestURI();
+        String path = normalizePath(request);
         if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
             return;
@@ -97,6 +97,30 @@ public class JwtSubscriptionFilter extends OncePerRequestFilter {
 
     private boolean requiresSubscription(String path) {
         return SUBSCRIPTION_PATHS.stream().anyMatch(path::startsWith);
+    }
+
+    private String normalizePath(HttpServletRequest request) {
+        String path = extractPathWithinApplication(request);
+        if ("/api".equals(path)) {
+            return "/";
+        }
+        if (path.startsWith("/api/")) {
+            return path.substring(4);
+        }
+        return path;
+    }
+
+    private String extractPathWithinApplication(HttpServletRequest request) {
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (contextPath == null || contextPath.isEmpty()) {
+            return requestUri;
+        }
+        if (!requestUri.startsWith(contextPath)) {
+            return requestUri;
+        }
+        String path = requestUri.substring(contextPath.length());
+        return path.isEmpty() ? "/" : path;
     }
 
     private void respondUnauthorized(HttpServletResponse response, String message) throws IOException {

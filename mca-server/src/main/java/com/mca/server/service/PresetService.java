@@ -25,6 +25,7 @@ public class PresetService {
     private final PresetRepository presetRepository;
     private final AnchorRepository anchorRepository;
     private final ObjectMapper objectMapper;
+    private final WidgetUpdatePublisher widgetUpdatePublisher;
 
     private static final int MAX_PRESETS_PER_DEVICE = 10;
 
@@ -127,6 +128,7 @@ public class PresetService {
 
         Preset saved = presetRepository.save(preset);
         log.info("Preset updated: {}", presetId);
+        widgetUpdatePublisher.publishForPreset(presetId);
 
         return PresetDTO.fromEntity(saved);
     }
@@ -149,6 +151,7 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
 
         log.info("Game config updated for preset: {}", presetId);
+        widgetUpdatePublisher.publishForPreset(presetId);
         return PresetDTO.fromEntity(saved);
     }
 
@@ -173,6 +176,7 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
 
         log.info("Anchor added to preset: {}", presetId);
+        widgetUpdatePublisher.publishForPreset(presetId);
         return PresetDTO.fromEntity(saved);
     }
 
@@ -186,6 +190,7 @@ public class PresetService {
 
         Preset saved = presetRepository.save(preset);
         log.info("Anchor removed from preset: {}", presetId);
+        widgetUpdatePublisher.publishForPreset(presetId);
         return PresetDTO.fromEntity(saved);
     }
 
@@ -203,6 +208,7 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
 
         log.info("Anchor gifts updated: {}", anchorId);
+        widgetUpdatePublisher.publishForPreset(presetId);
         return PresetDTO.fromEntity(saved);
     }
 
@@ -215,6 +221,7 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
 
         log.info("Target gifts updated for preset: {}", presetId);
+        widgetUpdatePublisher.publishForPreset(presetId);
         return PresetDTO.fromEntity(saved);
     }
 
@@ -227,6 +234,7 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
 
         log.info("Widget settings updated for preset: {}", presetId);
+        widgetUpdatePublisher.publishForPreset(presetId);
         return PresetDTO.fromEntity(saved);
     }
 

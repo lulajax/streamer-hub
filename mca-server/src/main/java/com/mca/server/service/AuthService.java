@@ -1,7 +1,9 @@
 package com.mca.server.service;
 
 import com.mca.server.dto.*;
+import com.mca.server.entity.ActivationCode;
 import com.mca.server.entity.User;
+import com.mca.server.repository.ActivationCodeRepository;
 import com.mca.server.repository.UserRepository;
 import com.mca.server.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +27,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final ActivationCodeRepository activationCodeRepository;
     
     @Value("${mca.activation.default-expiry-days:365}")
     private int defaultActivationExpiryDays;
+
+    @Value("${mca.activation.code-expiry-days:0}")
+    private int activationCodeExpiryDays;
     
     @Transactional
     public ApiResponse<UserDTO> register(RegisterRequest request) {
-        log.info("Processing registration for email: {}", request.getEmail());
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+        log.info("Processing registration for email: {}", normalizedEmail);
         
         // Validate password match
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -39,8 +46,39 @@ public class AuthService {
         }
         
         // Check if email already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
-            return ApiResponse.error("Email already registered");
+        Optional<User> existingUserOpt = userRepository.findByEmail(normalizedEmail);
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (Boolean.TRUE.equals(existingUser.getIsEmailVerified())) {
+                return ApiResponse.error("Email already registered");
+            }
+            if (Boolean.FALSE.equals(existingUser.getIsActive())) {
+                return ApiResponse.error("Account is deactivated");
+            }
+            if (Boolean.TRUE.equals(existingUser.getIsBanned())) {
+                return ApiResponse.error("Account has been banned. Reason: " + existingUser.getBanReason());
+            }
+            
+            String verificationToken = UUID.randomUUID().toString();
+            existingUser.setEmailVerificationToken(verificationToken);
+            existingUser.setIsEmailVerified(false);
+            existingUser.setEmailVerifiedAt(null);
+            existingUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            existingUser.setNickname(request.getNickname() != null
+                    ? request.getNickname()
+                    : normalizedEmail.split("@")[0]);
+            existingUser.setDeviceId(request.getDeviceId());
+            existingUser.setDeviceName(request.getDeviceName());
+            
+            User savedUser = userRepository.save(existingUser);
+            emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken);
+            
+            log.info("Verification email resent for unverified user: {}", savedUser.getEmail());
+            
+            return ApiResponse.success(
+                    "Registration successful. Please check your email to verify your account.",
+                    UserDTO.fromEntity(savedUser)
+            );
         }
         
         // Generate email verification token
@@ -48,7 +86,7 @@ public class AuthService {
         
         // Create new user
         User user = User.builder()
-                .email(request.getEmail().toLowerCase().trim())
+                .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname() != null ? request.getNickname() : request.getEmail().split("@")[0])
                 .deviceId(request.getDeviceId())
@@ -161,23 +199,32 @@ public class AuthService {
         
         User user = userOpt.get();
         
-        // Validate activation code
-        if (!isValidActivationCode(request.getActivationCode())) {
+        String activationCodeValue = request.getActivationCode();
+        // Validate activation code format
+        if (!isValidActivationCode(activationCodeValue)) {
             return ApiResponse.error("Invalid activation code");
         }
-        
-        // Check if code is already used
-        Optional<User> existingUser = userRepository.findByActivationCode(request.getActivationCode());
-        if (existingUser.isPresent() && !existingUser.get().getId().equals(userId)) {
+
+        Optional<ActivationCode> codeOpt = activationCodeRepository.findByCode(activationCodeValue);
+        if (codeOpt.isEmpty()) {
+            return ApiResponse.error("Invalid activation code");
+        }
+
+        ActivationCode activationCode = codeOpt.get();
+        if (Boolean.TRUE.equals(activationCode.getIsUsed())) {
             return ApiResponse.error("Activation code already used");
         }
-        
-        // Determine subscription type based on code prefix
-        User.SubscriptionType subscriptionType = getSubscriptionTypeFromCode(request.getActivationCode());
+        if (activationCode.isExpired()) {
+            return ApiResponse.error("Activation code has expired");
+        }
+
+        User.SubscriptionType subscriptionType = activationCode.getSubscriptionType() != null
+                ? activationCode.getSubscriptionType()
+                : getSubscriptionTypeFromCode(activationCodeValue);
         
         // Activate user
         user.setIsActivated(true);
-        user.setActivationCode(request.getActivationCode());
+        user.setActivationCode(activationCodeValue);
         user.setActivatedAt(LocalDateTime.now());
         user.setActivationExpiresAt(LocalDateTime.now().plusDays(defaultActivationExpiryDays));
         user.setSubscriptionType(subscriptionType);
@@ -191,6 +238,11 @@ public class AuthService {
         }
         
         User savedUser = userRepository.save(user);
+
+        activationCode.setIsUsed(true);
+        activationCode.setUsedAt(LocalDateTime.now());
+        activationCode.setUsedByUserId(userId);
+        activationCodeRepository.save(activationCode);
         
         log.info("Premium activated successfully for user: {}, type: {}", 
                 user.getEmail(), subscriptionType);
@@ -213,7 +265,7 @@ public class AuthService {
         Optional<User> userOpt = userRepository.findByEmail(email.toLowerCase().trim());
         if (userOpt.isEmpty()) {
             // Don't reveal if email exists
-            return ApiResponse.success("If the email exists, a password reset link has been sent");
+            return ApiResponse.success("If the email exists, a password reset link has been sent", null);
         }
         
         User user = userOpt.get();
@@ -225,7 +277,7 @@ public class AuthService {
         
         emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
         
-        return ApiResponse.success("If the email exists, a password reset link has been sent");
+        return ApiResponse.success("If the email exists, a password reset link has been sent", null);
     }
     
     @Transactional
@@ -246,21 +298,37 @@ public class AuthService {
         user.setPasswordResetExpiresAt(null);
         userRepository.save(user);
         
-        return ApiResponse.success("Password reset successful");
+        return ApiResponse.success("Password reset successful", null);
     }
     
     @Transactional
     public ApiResponse<String> generateActivationCode(String type) {
-        // Generate activation code with prefix indicating subscription type
-        String prefix = switch (type.toUpperCase()) {
-            case "BASIC" -> "BAS";
-            case "PRO" -> "PRO";
-            case "ENTERPRISE" -> "ENT";
-            default -> "BAS";
+        User.SubscriptionType subscriptionType = getSubscriptionTypeFromType(type);
+        String prefix = switch (subscriptionType) {
+            case PRO -> "PRO";
+            case ENTERPRISE -> "ENT";
+            case BASIC, FREE -> "BAS";
         };
-        
-        String code = prefix + "-" + UUID.randomUUID().toString().replaceAll("-", "").substring(0, 12).toUpperCase();
-        
+
+        String code;
+        do {
+            code = prefix + "-" + UUID.randomUUID().toString().replaceAll("-", "")
+                    .substring(0, 12)
+                    .toUpperCase();
+        } while (activationCodeRepository.existsByCode(code));
+
+        ActivationCode activationCode = ActivationCode.builder()
+                .code(code)
+                .subscriptionType(subscriptionType == User.SubscriptionType.FREE
+                        ? User.SubscriptionType.BASIC
+                        : subscriptionType)
+                .expiresAt(activationCodeExpiryDays > 0
+                        ? LocalDateTime.now().plusDays(activationCodeExpiryDays)
+                        : null)
+                .build();
+
+        activationCodeRepository.save(activationCode);
+
         return ApiResponse.success("Activation code generated", code);
     }
     
@@ -277,5 +345,17 @@ public class AuthService {
         } else {
             return User.SubscriptionType.BASIC;
         }
+    }
+
+    private User.SubscriptionType getSubscriptionTypeFromType(String type) {
+        if (type == null) {
+            return User.SubscriptionType.BASIC;
+        }
+        return switch (type.toUpperCase()) {
+            case "PRO" -> User.SubscriptionType.PRO;
+            case "ENTERPRISE", "ENT" -> User.SubscriptionType.ENTERPRISE;
+            case "BASIC", "BAS" -> User.SubscriptionType.BASIC;
+            default -> User.SubscriptionType.BASIC;
+        };
     }
 }

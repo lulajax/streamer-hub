@@ -1,6 +1,12 @@
 mca-electron/dist/*
 mca-electron/node_modules/*
+mca-electron/src/renderer/dist/*
+
+
 mca-widget/dist/*
 mca-widget/node_modules/*
 
 mca-server/target/*
+mca-server/src/main/resources/application.yml
+.vscode/*
+

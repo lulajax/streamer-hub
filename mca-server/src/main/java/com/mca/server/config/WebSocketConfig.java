@@ -2,6 +2,7 @@ package com.mca.server.config;
 
 import com.mca.server.websocket.GiftWebSocketHandler;
 import com.mca.server.websocket.RoomWebSocketHandler;
+import com.mca.server.websocket.WidgetWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -15,6 +16,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     
     private final RoomWebSocketHandler roomWebSocketHandler;
     private final GiftWebSocketHandler giftWebSocketHandler;
+    private final WidgetWebSocketHandler widgetWebSocketHandler;
     
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
@@ -24,6 +26,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
         
         // Legacy gift WebSocket - for backward compatibility
         registry.addHandler(giftWebSocketHandler, "/ws/gifts/{roomId}")
+                .setAllowedOrigins("*");
+
+        // Widget WebSocket - for widget token based overlays
+        registry.addHandler(widgetWebSocketHandler, "/ws/widget/{token}")
                 .setAllowedOrigins("*");
     }
 }

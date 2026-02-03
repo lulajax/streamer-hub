@@ -25,6 +25,7 @@ public class EmailService {
     public void sendVerificationEmail(String toEmail, String token) {
         try {
             String verificationUrl = frontendUrl + "/verify-email?token=" + token;
+            log.info("Verification URL: {}", verificationUrl);
             
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
