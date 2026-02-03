@@ -1,0 +1,18 @@
+{
+  "name": "mca-widget",
+  "version": "1.0.0",
+  "description": "MCA Widget for TikTok Live Studio Browser Source",
+  "main": "src/index.html",
+  "scripts": {
+    "dev": "npx serve src -p 3000",
+    "build": "echo 'No build needed for static HTML widget'",
+    "serve": "npx serve src -p 3000"
+  },
+  "keywords": [
+    "tiktok",
+    "live",
+    "widget",
+    "overlay"
+  ],
+  "license": "MIT"
+}

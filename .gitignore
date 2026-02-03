@@ -1,0 +1,6 @@
+mca-electron/dist/*
+mca-electron/node_modules/*
+mca-widget/dist/*
+mca-widget/node_modules/*
+
+mca-server/target/*
