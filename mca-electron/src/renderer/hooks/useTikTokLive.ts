@@ -59,59 +59,142 @@ export function useTikTokLive() {
   const [availableGifts, setAvailableGifts] = useState<TikTokGift[]>([])
   const [error, setError] = useState<string | null>(null)
   
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const connectionRef = useRef<any | null>(null)
   const uniqueIdRef = useRef<string>('')
+  const giftCallbacksRef = useRef<Array<(event: TikTokGiftEvent) => void>>([])
+  const chatCallbacksRef = useRef<Array<(event: TikTokChatEvent) => void>>([])
+  const memberCallbacksRef = useRef<Array<(event: TikTokMemberEvent) => void>>([])
+  const likeCallbacksRef = useRef<Array<(event: TikTokLikeEvent) => void>>([])
+
+  const getConnection = useCallback(async (uniqueId: string) => {
+    if (connectionRef.current && uniqueIdRef.current === uniqueId) {
+      return connectionRef.current
+    }
+
+    if (connectionRef.current) {
+      try {
+        connectionRef.current.disconnect()
+      } catch (err) {
+        console.warn('Failed to disconnect existing TikTok connection', err)
+      }
+      connectionRef.current = null
+    }
+
+    const { WebcastPushConnection } = await import('tiktok-live-connector')
+    const connection = new WebcastPushConnection(uniqueId, {
+      enableExtendedGiftInfo: true,
+    })
+
+    connection.on('gift', (data: any) => {
+      const event = {
+        user: {
+          userId: data.user?.userId || '',
+          userName: data.user?.uniqueId || '',
+          userNickname: data.user?.nickname || '',
+          userAvatar: data.user?.avatarThumb || '',
+        },
+        gift: {
+          giftId: data.gift?.giftId || '',
+          giftName: data.gift?.name || '',
+          giftIcon: data.gift?.image || '',
+          diamondCost: data.gift?.diamondCount || 0,
+          quantity: data.repeatCount || 1,
+          totalCost: (data.gift?.diamondCount || 0) * (data.repeatCount || 1),
+        },
+        repeatCount: data.repeatCount || 1,
+        repeatEnd: data.repeatEnd ?? true,
+      }
+      giftCallbacksRef.current.forEach((callback) => callback(event))
+    })
+
+    connection.on('chat', (data: any) => {
+      const event = {
+        user: {
+          userId: data.user?.userId || '',
+          userName: data.user?.uniqueId || '',
+          userNickname: data.user?.nickname || '',
+          userAvatar: data.user?.avatarThumb || '',
+        },
+        comment: data.comment || '',
+      }
+      chatCallbacksRef.current.forEach((callback) => callback(event))
+    })
+
+    connection.on('member', (data: any) => {
+      const event = {
+        user: {
+          userId: data.user?.userId || '',
+          userName: data.user?.uniqueId || '',
+          userNickname: data.user?.nickname || '',
+          userAvatar: data.user?.avatarThumb || '',
+        },
+      }
+      memberCallbacksRef.current.forEach((callback) => callback(event))
+    })
+
+    connection.on('like', (data: any) => {
+      const event = {
+        user: {
+          userId: data.user?.userId || '',
+          userName: data.user?.uniqueId || '',
+          userNickname: data.user?.nickname || '',
+          userAvatar: data.user?.avatarThumb || '',
+        },
+        likeCount: data.likeCount || 1,
+        totalLikeCount: data.totalLikeCount || 0,
+      }
+      likeCallbacksRef.current.forEach((callback) => callback(event))
+    })
+
+    connectionRef.current = connection
+    uniqueIdRef.current = uniqueId
+    return connection
+  }, [])
 
   // Check if user is live
   const checkIsLive = useCallback(async (uniqueId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`http://localhost:8080/api/tiktok/is-live/${uniqueId}`)
-      const data = await response.json()
-      return data.success && data.data.isLive
+      const connection = await getConnection(uniqueId)
+      const result = await connection.fetchIsLive()
+      return Boolean(result?.isLive)
     } catch (err) {
       console.error('Failed to check if user is live:', err)
       return false
     }
-  }, [])
+  }, [getConnection])
 
   // Get room info
   const getRoomInfo = useCallback(async (uniqueId: string): Promise<TikTokRoomInfo | null> => {
     try {
-      const response = await fetch(`http://localhost:8080/api/tiktok/room-info/${uniqueId}`)
-      const data = await response.json()
-      
-      if (data.success) {
-        const info = data.data
-        return {
-          roomId: info.roomId || '',
-          title: info.title || '',
-          owner: {
-            userId: info.owner?.userId || '',
-            userName: info.owner?.uniqueId || '',
-            userNickname: info.owner?.nickname || '',
-            userAvatar: info.owner?.avatarThumb || '',
-          },
-          viewerCount: info.viewerCount || 0,
-          likeCount: info.likeCount || 0,
-          isLive: true,
-        }
+      const connection = await getConnection(uniqueId)
+      const info = await connection.fetchRoomInfo()
+      if (!info) return null
+      return {
+        roomId: info.roomId || '',
+        title: info.title || '',
+        owner: {
+          userId: info.owner?.userId || '',
+          userName: info.owner?.uniqueId || '',
+          userNickname: info.owner?.nickname || '',
+          userAvatar: info.owner?.avatarThumb || '',
+        },
+        viewerCount: info.viewerCount || 0,
+        likeCount: info.likeCount || 0,
+        isLive: true,
       }
-      return null
     } catch (err) {
       console.error('Failed to get room info:', err)
       return null
     }
-  }, [])
+  }, [getConnection])
 
   // Get available gifts
-  const getAvailableGifts = useCallback(async (roomId: string): Promise<TikTokGift[]> => {
+  const getAvailableGifts = useCallback(async (uniqueId: string): Promise<TikTokGift[]> => {
     try {
-      const response = await fetch(`http://localhost:8080/api/tiktok/gifts/${roomId}`)
-      const data = await response.json()
-      
-      if (data.success && Array.isArray(data.data)) {
-        return data.data.map((gift: any) => ({
+      const connection = await getConnection(uniqueId)
+      const gifts = await connection.fetchAvailableGifts()
+      if (Array.isArray(gifts)) {
+        return gifts.map((gift: any) => ({
           giftId: gift.giftId || '',
           giftName: gift.name || '',
           giftIcon: gift.image || '',
@@ -125,7 +208,7 @@ export function useTikTokLive() {
       console.error('Failed to get available gifts:', err)
       return []
     }
-  }, [])
+  }, [getConnection])
 
   // Connect to TikTok Live
   const connect = useCallback(async (uniqueId: string) => {
@@ -155,71 +238,36 @@ export function useTikTokLive() {
       }
       setRoomInfo(info)
 
-      // Get available gifts
-      const gifts = await getAvailableGifts(info.roomId)
+      const gifts = await getAvailableGifts(uniqueId)
       setAvailableGifts(gifts)
 
-      // Get WebSocket URL
-      const wsResponse = await fetch(
-        `http://localhost:8080/api/tiktok/websocket-url?uniqueId=${uniqueId}&roomId=${info.roomId}`
-      )
-      const wsData = await wsResponse.json()
+      const connection = await getConnection(uniqueId)
+      await connection.connect()
 
-      if (!wsData.success || !wsData.data.websocketUrl) {
-        setError('Failed to get WebSocket connection URL')
-        setIsConnecting(false)
-        return
-      }
-
-      // Connect to WebSocket
-      const wsUrl = wsData.data.websocketUrl
-      wsRef.current = new WebSocket(wsUrl)
-
-      wsRef.current.onopen = () => {
-        console.log('Connected to TikTok Live')
-        setIsConnected(true)
-        setIsConnecting(false)
-        toast({
-          title: 'Connected',
-          description: `Connected to @${uniqueId}'s live stream`,
-        })
-      }
-
-      wsRef.current.onclose = () => {
-        console.log('Disconnected from TikTok Live')
-        setIsConnected(false)
-        
-        // Auto reconnect after 5 seconds
-        if (uniqueIdRef.current) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect(uniqueIdRef.current)
-          }, 5000)
-        }
-      }
-
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        setError('Connection error')
-        setIsConnecting(false)
-      }
+      console.log('Connected to TikTok Live')
+      setIsConnected(true)
+      setIsConnecting(false)
+      toast({
+        title: 'Connected',
+        description: `Connected to @${uniqueId}'s live stream`,
+      })
 
     } catch (err) {
       console.error('Failed to connect:', err)
       setError('Failed to connect to TikTok Live')
       setIsConnecting(false)
     }
-  }, [checkIsLive, getRoomInfo, getAvailableGifts, isConnecting, isConnected, toast])
+  }, [checkIsLive, getRoomInfo, getAvailableGifts, getConnection, isConnecting, isConnected, toast])
 
   // Disconnect from TikTok Live
   const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
+    if (connectionRef.current) {
+      try {
+        connectionRef.current.disconnect()
+      } catch (err) {
+        console.warn('Failed to disconnect TikTok connection', err)
+      }
+      connectionRef.current = null
     }
 
     uniqueIdRef.current = ''
@@ -231,118 +279,30 @@ export function useTikTokLive() {
 
   // Subscribe to events
   const onGift = useCallback((callback: (event: TikTokGiftEvent) => void) => {
-    if (!wsRef.current) return
-
-    wsRef.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        
-        switch (data.event) {
-          case 'gift':
-            callback({
-              user: {
-                userId: data.user?.userId || '',
-                userName: data.user?.uniqueId || '',
-                userNickname: data.user?.nickname || '',
-                userAvatar: data.user?.avatarThumb || '',
-              },
-              gift: {
-                giftId: data.gift?.giftId || '',
-                giftName: data.gift?.name || '',
-                giftIcon: data.gift?.image || '',
-                diamondCost: data.gift?.diamondCount || 0,
-                quantity: data.repeatCount || 1,
-                totalCost: (data.gift?.diamondCount || 0) * (data.repeatCount || 1),
-              },
-              repeatCount: data.repeatCount || 1,
-              repeatEnd: data.repeatEnd || true,
-            })
-            break
-        }
-      } catch (err) {
-        console.error('Failed to parse WebSocket message:', err)
-      }
+    giftCallbacksRef.current.push(callback)
+    return () => {
+      giftCallbacksRef.current = giftCallbacksRef.current.filter((cb) => cb !== callback)
     }
   }, [])
 
   const onChat = useCallback((callback: (event: TikTokChatEvent) => void) => {
-    if (!wsRef.current) return
-
-    const originalOnMessage = wsRef.current.onmessage
-    wsRef.current.onmessage = (event) => {
-      originalOnMessage?.(event)
-      
-      try {
-        const data = JSON.parse(event.data)
-        
-        if (data.event === 'chat') {
-          callback({
-            user: {
-              userId: data.user?.userId || '',
-              userName: data.user?.uniqueId || '',
-              userNickname: data.user?.nickname || '',
-              userAvatar: data.user?.avatarThumb || '',
-            },
-            comment: data.comment || '',
-          })
-        }
-      } catch (err) {
-        console.error('Failed to parse chat message:', err)
-      }
+    chatCallbacksRef.current.push(callback)
+    return () => {
+      chatCallbacksRef.current = chatCallbacksRef.current.filter((cb) => cb !== callback)
     }
   }, [])
 
   const onMember = useCallback((callback: (event: TikTokMemberEvent) => void) => {
-    if (!wsRef.current) return
-
-    const originalOnMessage = wsRef.current.onmessage
-    wsRef.current.onmessage = (event) => {
-      originalOnMessage?.(event)
-      
-      try {
-        const data = JSON.parse(event.data)
-        
-        if (data.event === 'member') {
-          callback({
-            user: {
-              userId: data.user?.userId || '',
-              userName: data.user?.uniqueId || '',
-              userNickname: data.user?.nickname || '',
-              userAvatar: data.user?.avatarThumb || '',
-            },
-          })
-        }
-      } catch (err) {
-        console.error('Failed to parse member message:', err)
-      }
+    memberCallbacksRef.current.push(callback)
+    return () => {
+      memberCallbacksRef.current = memberCallbacksRef.current.filter((cb) => cb !== callback)
     }
   }, [])
 
   const onLike = useCallback((callback: (event: TikTokLikeEvent) => void) => {
-    if (!wsRef.current) return
-
-    const originalOnMessage = wsRef.current.onmessage
-    wsRef.current.onmessage = (event) => {
-      originalOnMessage?.(event)
-      
-      try {
-        const data = JSON.parse(event.data)
-        
-        if (data.event === 'like') {
-          callback({
-            user: {
-              userId: data.user?.userId || '',
-              userName: data.user?.uniqueId || '',
-              userNickname: data.user?.nickname || '',
-              userAvatar: data.user?.avatarThumb || '',
-            },
-            likeCount: data.likeCount || 1,
-            totalLikeCount: data.totalLikeCount || 0,
-          })
-        }
-      } catch (err) {
-        console.error('Failed to parse like message:', err)
-      }
+    likeCallbacksRef.current.push(callback)
+    return () => {
+      likeCallbacksRef.current = likeCallbacksRef.current.filter((cb) => cb !== callback)
     }
   }, [])
 

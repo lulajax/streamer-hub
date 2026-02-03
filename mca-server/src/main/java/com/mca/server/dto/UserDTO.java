@@ -21,6 +21,7 @@ public class UserDTO {
     private String avatarUrl;
     private Boolean isEmailVerified;
     private Boolean isActivated;
+    private String activationCode;
     private User.SubscriptionType subscriptionType;
     
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -47,6 +48,7 @@ public class UserDTO {
                 .avatarUrl(user.getAvatarUrl())
                 .isEmailVerified(user.getIsEmailVerified())
                 .isActivated(user.getIsActivated())
+                .activationCode(user.getActivationCode())
                 .subscriptionType(user.getSubscriptionType())
                 .subscriptionExpiresAt(user.getSubscriptionExpiresAt())
                 .activatedAt(user.getActivatedAt())

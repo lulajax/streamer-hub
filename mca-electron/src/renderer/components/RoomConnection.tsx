@@ -12,7 +12,12 @@ import type { Room } from '@/types'
 export function RoomConnection() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { recentRooms, setCurrentRoom, addRecentRoom, activation } = useStore()
+  const { recentRooms, setCurrentRoom, addRecentRoom, activation, user } = useStore()
+  const subscriptionExpiresAt = user?.subscriptionExpiresAt
+  const subscriptionType = user?.subscriptionType ?? 'FREE'
+  const isSubscriptionActive =
+    subscriptionType !== 'FREE' &&
+    (subscriptionExpiresAt ? Date.now() < subscriptionExpiresAt : false)
   const [roomInput, setRoomInput] = useState('')
   const [isConnecting, setIsConnecting] = useState(false)
 
@@ -30,6 +35,24 @@ export function RoomConnection() {
   }
 
   const handleConnect = async () => {
+    if (!activation?.isActivated) {
+      toast({
+        title: t('error'),
+        description: 'Please activate your subscription before connecting a room',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!isSubscriptionActive) {
+      toast({
+        title: t('error'),
+        description: 'Your subscription has expired. Please renew to continue.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     const roomId = extractRoomId(roomInput)
     if (!roomId) {
       toast({
@@ -202,7 +225,10 @@ export function RoomConnection() {
           </div>
         </div>
 
-        <div className="text-center mt-6 text-slate-500 text-sm">
+        <div className="text-center mt-6 text-slate-500 text-sm space-y-1">
+          <p>
+            Subscription: {subscriptionType} · {isSubscriptionActive ? 'Active' : 'Inactive'}
+          </p>
           <p>Device: {activation.deviceName}</p>
           <p className="mt-1">
             Valid until: {activation.expiresAt ? new Date(activation.expiresAt).toLocaleDateString() : 'N/A'}

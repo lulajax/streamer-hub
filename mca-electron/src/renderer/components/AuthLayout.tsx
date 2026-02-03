@@ -35,6 +35,24 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
   const [activationCode, setActivationCode] = useState('')
   const [showActivation, setShowActivation] = useState(false)
 
+  const parseDateToMs = (value?: string) => {
+    if (!value) return undefined
+    const normalized = value.includes('T') ? value : value.replace(' ', 'T')
+    const date = new Date(normalized)
+    return Number.isNaN(date.getTime()) ? undefined : date.getTime()
+  }
+
+  const updateUserDates = (payload: any) => {
+    if (!payload) return payload
+    return {
+      ...payload,
+      activatedAt: parseDateToMs(payload.activatedAt),
+      subscriptionExpiresAt: payload.subscriptionExpiresAt
+        ? parseDateToMs(payload.subscriptionExpiresAt)
+        : undefined,
+    }
+  }
+
   const handleLogin = async () => {
     if (!loginEmail || !loginPassword) {
       toast({
@@ -60,7 +78,7 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
       const data = await response.json()
       
       if (data.success) {
-        setUser(data.data)
+        setUser(updateUserDates(data.data))
         
         // Check if user needs activation
         if (!data.data.isActivated) {
@@ -189,7 +207,7 @@ export function AuthLayout({ onAuthSuccess }: AuthLayoutProps) {
       const data = await response.json()
       
       if (data.success) {
-        setUser(data.data)
+        setUser(updateUserDates(data.data))
         toast({
           title: 'Success',
           description: 'Premium activated successfully!',

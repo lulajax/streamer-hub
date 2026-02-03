@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRoomWebSocket, type WsStateMessage, type WsEventMessage } from './useRoomWebSocket'
+import { useTikTokLive } from './useTikTokLive'
 import { StickerDanceEngine, AttackDefenseEngine, FreeModeEngine, type GameState, type GameEvent } from '@/services/GameEngine'
 import { useStore } from '@/stores/useStore'
 import { useToast } from '@/hooks/use-toast'
@@ -33,6 +34,8 @@ export function useGameManager() {
   const { toast } = useToast()
   const { anchors, currentSession, user } = useStore()
   const { status, connect, disconnect, sendState, sendEvent } = useRoomWebSocket()
+  const tiktok = useTikTokLive()
+  const [tiktokAnchorMap, setTiktokAnchorMap] = useState<Record<string, string>>({})
   
   const [managerState, setManagerState] = useState<GameManagerState>({
     isInitialized: false,
@@ -96,6 +99,9 @@ export function useGameManager() {
     
     // Connect WebSocket
     connect(roomId, user.accessToken, 'producer')
+
+    // Connect TikTok live events
+    await tiktok.connect(roomId)
     
     setManagerState(prev => ({
       ...prev,
@@ -103,7 +109,7 @@ export function useGameManager() {
     }))
 
     return true
-  }, [connect, user])
+  }, [connect, tiktok, user])
 
   // Start game
   const startGame = useCallback(() => {
@@ -181,6 +187,7 @@ export function useGameManager() {
 
     // Disconnect WebSocket
     disconnect()
+    tiktok.disconnect()
 
     setManagerState({
       isInitialized: false,
@@ -196,7 +203,7 @@ export function useGameManager() {
     toast({
       title: 'Game Stopped',
     })
-  }, [disconnect, toast])
+  }, [disconnect, tiktok, toast])
 
   // Process gift from TikTok Live
   const processGift = useCallback((anchorId: string, giftValue: number, quantity: number = 1) => {
@@ -213,6 +220,19 @@ export function useGameManager() {
     broadcastState(result.state)
     broadcastEvent(result.event)
   }, [managerState.isRunning])
+
+  const ensureTikTokAnchorMap = useCallback(() => {
+    if (!anchors || anchors.length === 0) return
+    setTiktokAnchorMap((prev) => {
+      const next = { ...prev }
+      anchors.forEach((anchor) => {
+        if (anchor.tiktokId && !next[anchor.tiktokId]) {
+          next[anchor.tiktokId] = anchor.id
+        }
+      })
+      return next
+    })
+  }, [anchors])
 
   // Broadcast state to server
   const broadcastState = useCallback((state: GameState) => {
@@ -269,8 +289,30 @@ export function useGameManager() {
         clearInterval(gameLoopRef.current)
       }
       disconnect()
+      tiktok.disconnect()
     }
-  }, [disconnect])
+  }, [disconnect, tiktok])
+
+  useEffect(() => {
+    ensureTikTokAnchorMap()
+  }, [ensureTikTokAnchorMap])
+
+  useEffect(() => {
+    if (!managerState.isRunning) return
+
+    const unsubscribe = tiktok.onGift((event) => {
+      const anchorId = tiktokAnchorMap[event.user.userName]
+      if (!anchorId) return
+
+      processGift(anchorId, event.gift.diamondCost, event.gift.quantity)
+    })
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    }
+  }, [managerState.isRunning, processGift, tiktok, tiktokAnchorMap])
 
   return {
     // State

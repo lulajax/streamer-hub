@@ -27,7 +27,12 @@ import {
 
 export function MainLayout() {
   const { t, i18n } = useTranslation()
-  const { currentRoom, setCurrentRoom, activation } = useStore()
+  const { currentRoom, setCurrentRoom, activation, user } = useStore()
+  const subscriptionExpiresAt = user?.subscriptionExpiresAt
+  const subscriptionType = user?.subscriptionType ?? 'FREE'
+  const isSubscriptionActive =
+    subscriptionType !== 'FREE' &&
+    (subscriptionExpiresAt ? Date.now() < subscriptionExpiresAt : false)
   const [activeTab, setActiveTab] = useState('dashboard')
 
   const handleDisconnect = async () => {
@@ -122,6 +127,9 @@ export function MainLayout() {
               <div className="bg-slate-800/50 rounded-lg p-3">
                 <p className="text-slate-400 text-xs mb-1">{t('deviceName')}</p>
                 <p className="text-slate-200 text-sm font-medium">{activation.deviceName}</p>
+                <p className="text-slate-500 text-xs mt-2">
+                  Subscription: {subscriptionType} · {isSubscriptionActive ? 'Active' : 'Inactive'}
+                </p>
                 <p className="text-slate-500 text-xs mt-2">
                   {t('validUntil')}: {activation.expiresAt ? new Date(activation.expiresAt).toLocaleDateString() : 'N/A'}
                 </p>
