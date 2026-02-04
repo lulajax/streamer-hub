@@ -8,5 +8,6 @@ mca-widget/node_modules/*
 
 mca-server/target/*
 mca-server/src/main/resources/application.yml
-.vscode/*
 
+.vscode/*
+.claude/*
