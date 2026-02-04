@@ -2,7 +2,7 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './src/renderer/**/*.{ts,tsx,vue}',
+    './src/renderer/**/*.{ts,tsx}',
   ],
   theme: {
     container: {
