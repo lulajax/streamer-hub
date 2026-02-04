@@ -1,4 +1,6 @@
-import { createI18n } from 'vue-i18n'
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
+import LanguageDetector from 'i18next-browser-languagedetector'
 
 const resources = {
   zh: {
@@ -612,12 +614,19 @@ const resources = {
   },
 }
 
-const defaultLocale = localStorage.getItem('language') || 'zh'
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources,
+    fallbackLng: 'zh',
+    interpolation: {
+      escapeValue: false,
+    },
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage'],
+    },
+  })
 
-export const i18n = createI18n({
-  legacy: false,
-  locale: defaultLocale,
-  fallbackLocale: 'zh',
-  messages: resources,
-  globalInjection: true,
-})
+export default i18n
