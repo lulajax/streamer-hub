@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, session, dialog } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
+import fs from 'node:fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -19,6 +20,56 @@ let mainWindow: BrowserWindow | null = null
 let monitorWindow: BrowserWindow | null = null
 let tiktokConnection: any | null = null
 let tiktokUniqueId = ''
+
+// Device info storage
+const DEVICE_INFO_FILE = path.join(app.getPath('userData'), 'device-info.json')
+
+interface DeviceInfoData {
+  deviceId: string
+  deviceName: string
+}
+
+function readDeviceInfo(): DeviceInfoData | null {
+  try {
+    if (fs.existsSync(DEVICE_INFO_FILE)) {
+      const data = fs.readFileSync(DEVICE_INFO_FILE, 'utf-8')
+      return JSON.parse(data) as DeviceInfoData
+    }
+  } catch (err) {
+    console.error('Failed to read device info:', err)
+  }
+  return null
+}
+
+function writeDeviceInfo(deviceInfo: DeviceInfoData): void {
+  try {
+    fs.writeFileSync(DEVICE_INFO_FILE, JSON.stringify(deviceInfo, null, 2), 'utf-8')
+  } catch (err) {
+    console.error('Failed to write device info:', err)
+  }
+}
+
+function generateDeviceId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function generateDeviceName(): string {
+  const platform = process.platform
+  const hostname = os.hostname()
+  return `MCA-${platform}-${hostname}`
+}
+
+function getOrCreateDeviceInfo(): DeviceInfoData {
+  let deviceInfo = readDeviceInfo()
+  if (!deviceInfo) {
+    deviceInfo = {
+      deviceId: generateDeviceId(),
+      deviceName: generateDeviceName()
+    }
+    writeDeviceInfo(deviceInfo)
+  }
+  return deviceInfo
+}
 
 type TikTokLiveEvent =
   | { type: 'gift'; payload: any }
@@ -292,6 +343,17 @@ ipcMain.handle('get-system-info', () => {
     version: os.release(),
     hostname: os.hostname(),
   }
+})
+
+ipcMain.handle('get-device-info', () => {
+  return getOrCreateDeviceInfo()
+})
+
+ipcMain.handle('set-device-name', (_, deviceName: string) => {
+  const deviceInfo = getOrCreateDeviceInfo()
+  deviceInfo.deviceName = deviceName
+  writeDeviceInfo(deviceInfo)
+  return { success: true }
 })
 
 ipcMain.handle('show-save-dialog', async (_, options) => {

@@ -199,23 +199,7 @@
             <div class="p-4 bg-slate-800 rounded-lg space-y-2">
               <div class="flex justify-between">
                 <span class="text-slate-400">Device Name</span>
-                <span class="text-white">{{ store.activation.deviceName }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">Activated On</span>
-                <span class="text-white">
-                  {{ store.activation.activatedAt
-                    ? new Date(store.activation.activatedAt).toLocaleDateString()
-                    : 'N/A' }}
-                </span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">Valid Until</span>
-                <span class="text-white">
-                  {{ store.activation.expiresAt
-                    ? new Date(store.activation.expiresAt).toLocaleDateString()
-                    : 'N/A' }}
-                </span>
+                <span class="text-white">{{ store.activation.deviceName || 'Unknown' }}</span>
               </div>
             </div>
 

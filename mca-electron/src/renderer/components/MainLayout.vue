@@ -86,16 +86,10 @@
                 {{ t('validUntil') }}: {{ subscriptionExpiresAt ? new Date(subscriptionExpiresAt).toLocaleDateString() : 'N/A' }}
               </p>
             </div>
-            <!-- Activation Info -->
+            <!-- Device Info -->
             <div class="bg-slate-800/50 rounded-lg p-3">
               <p class="text-slate-400 text-xs mb-1">{{ t('deviceName') }}</p>
               <p class="text-slate-200 text-sm font-medium">{{ store.activation.deviceName || 'Unknown' }}</p>
-              <p class="text-slate-500 text-xs mt-2">
-                {{ t('status') }}: {{ store.activation.isActivated ? t('activated') : t('notActivated') }}
-              </p>
-              <p v-if="store.activation.expiresAt" class="text-slate-500 text-xs mt-2">
-                {{ t('validUntil') }}: {{ new Date(store.activation.expiresAt).toLocaleDateString() }}
-              </p>
             </div>
           </div>
         </ScrollArea>
@@ -264,15 +258,6 @@ const extractRoomId = (input: string): string | null => {
 }
 
 const handleSwitchRoom = async (input: string) => {
-  if (!store.activation.isActivated) {
-    toast({
-      title: t('error'),
-      description: 'Please activate your subscription before connecting a room',
-      variant: 'destructive',
-    })
-    return
-  }
-
   if (!isSubscriptionActive.value) {
     toast({
       title: t('error'),

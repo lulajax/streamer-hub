@@ -29,6 +29,8 @@ const electronAPI = {
   app: {
     getVersion: () => ipcRenderer.invoke('get-app-version'),
     getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
+    getDeviceInfo: () => ipcRenderer.invoke('get-device-info'),
+    setDeviceName: (deviceName: string) => ipcRenderer.invoke('set-device-name', deviceName),
   },
 
   // Dialog

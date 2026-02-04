@@ -13,36 +13,31 @@
       </div>
 
       <div class="grid md:grid-cols-2 gap-6">
-        <!-- Activation Card -->
+        <!-- Subscription Card -->
         <Card class="bg-slate-800/50 border-slate-700 backdrop-blur">
           <CardHeader>
             <CardTitle class="text-white flex items-center gap-2">
-              <Key class="w-5 h-5 text-blue-400" />
-              {{ t('activation') }}
+              <Crown class="w-5 h-5 text-amber-400" />
+              {{ t('subscription') }}
             </CardTitle>
             <CardDescription class="text-slate-400">
-              Enter your 16-digit activation code to unlock MCA
+              Subscribe to unlock all features
             </CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
-            <div>
-              <label class="text-sm font-medium text-slate-300 mb-2 block">
-                {{ t('activationCode') }}
-              </label>
-              <Input
-                :modelValue="activationCode"
-                placeholder="XXXX-XXXX-XXXX-XXXX"
-                maxlength="19"
-                class="bg-slate-900 border-slate-600 text-white text-center tracking-widest font-mono text-lg"
-                @update:modelValue="activationCode = formatActivationCode($event)"
-              />
+            <div class="p-4 bg-slate-900 rounded-lg">
+              <p class="text-slate-400 text-sm mb-1">Device Name</p>
+              <p class="text-white font-medium">{{ deviceName }}</p>
+            </div>
+            <div class="p-4 bg-slate-900 rounded-lg">
+              <p class="text-slate-400 text-sm mb-1">Subscription Status</p>
+              <p class="text-amber-400 font-medium">No Active Subscription</p>
             </div>
             <Button
-              :disabled="isActivating || activationCode.length !== 19"
               class="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-              @click="handleActivate"
+              @click="handleSubscribe"
             >
-              {{ isActivating ? t('loading') : t('activateNow') }}
+              {{ t('subscribeNow') }}
             </Button>
           </CardContent>
         </Card>
@@ -95,7 +90,7 @@
 
       <!-- Footer -->
       <div class="text-center mt-8 text-slate-500 text-sm">
-        <p>Contact customer service to get your activation code</p>
+        <p>Contact customer service to subscribe</p>
         <p class="mt-1">Support: Windows 7+ | macOS 10.14+</p>
       </div>
     </div>
@@ -103,60 +98,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from '@/stores/useStore'
 import Button from '@/components/ui/Button.vue'
-import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
 import CardHeader from '@/components/ui/CardHeader.vue'
 import CardTitle from '@/components/ui/CardTitle.vue'
 import CardDescription from '@/components/ui/CardDescription.vue'
 import CardContent from '@/components/ui/CardContent.vue'
 import { useToast } from '@/hooks/use-toast'
-import { Key, Monitor, Globe, Sparkles } from 'lucide-vue-next'
+import { getDeviceInfo } from '@/lib/device'
+import { Crown, Monitor, Globe, Sparkles } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const { toast } = useToast()
 const store = useStore()
 
-const activationCode = ref('')
-const isActivating = ref(false)
+const deviceName = ref('Unknown')
 
-const formatActivationCode = (value: string) => {
-  const cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
-  const formatted = cleaned.match(/.{1,4}/g)?.join('-') || cleaned
-  return formatted.slice(0, 19)
-}
-
-const handleActivate = async () => {
-  if (activationCode.value.length !== 16) {
-    toast({
-      title: t('error'),
-      description: 'Please enter a valid 16-digit activation code',
-      variant: 'destructive',
-    })
-    return
+onMounted(async () => {
+  try {
+    const deviceInfo = await getDeviceInfo()
+    deviceName.value = deviceInfo.deviceName
+  } catch (err) {
+    console.error('Failed to get device info:', err)
   }
+})
 
-  isActivating.value = true
-
-  setTimeout(() => {
-    const mockActivation = {
-      isActivated: true,
-      deviceName: `Device-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-      activatedAt: Date.now(),
-      expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
-      activationCode: activationCode.value,
-    }
-
-    store.setActivation(mockActivation)
-    isActivating.value = false
-
-    toast({
-      title: t('activationSuccess'),
-      description: `${t('deviceName')}: ${mockActivation.deviceName}`,
-    })
-  }, 1500)
+const handleSubscribe = () => {
+  toast({
+    title: 'Coming Soon',
+    description: 'Please contact customer service to subscribe.',
+  })
 }
 </script>

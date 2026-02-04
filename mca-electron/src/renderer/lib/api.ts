@@ -1,4 +1,5 @@
 import { getDeviceInfo } from '@/lib/device'
+import type { DeviceInfo } from '@/lib/device'
 
 export interface ApiFetchOptions extends RequestInit {
   baseUrl?: string
@@ -16,12 +17,12 @@ const joinUrl = (baseUrl: string, path: string) => {
   return `${base}/${suffix}`
 }
 
-const withDeviceInfo = (json: unknown) => {
+const withDeviceInfo = async (json: unknown): Promise<unknown> => {
   if (!json || typeof json !== 'object' || Array.isArray(json)) {
     return json
   }
 
-  const deviceInfo = getDeviceInfo()
+  const deviceInfo = await getDeviceInfo()
   const record = json as Record<string, unknown>
   const resolveValue = (value: unknown, fallback: string) =>
     typeof value === 'string' && value.trim().length > 0 ? value : fallback
@@ -40,7 +41,7 @@ export async function apiFetch<T>(
   const { baseUrl = DEFAULT_API_BASE_URL, headers, json, ...init } = options
   const url = isAbsoluteUrl(path) ? path : joinUrl(baseUrl, path)
 
-  const deviceInfo = getDeviceInfo()
+  const deviceInfo = await getDeviceInfo()
   const mergedHeaders = new Headers(headers ?? {})
   if (!mergedHeaders.has('X-Device-Id')) {
     mergedHeaders.set('X-Device-Id', deviceInfo.deviceId)
@@ -54,7 +55,7 @@ export async function apiFetch<T>(
     if (!mergedHeaders.has('Content-Type')) {
       mergedHeaders.set('Content-Type', 'application/json')
     }
-    body = JSON.stringify(withDeviceInfo(json))
+    body = JSON.stringify(await withDeviceInfo(json))
   }
 
   const response = await fetch(url, { ...init, headers: mergedHeaders, body })

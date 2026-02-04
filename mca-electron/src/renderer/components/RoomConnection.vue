@@ -155,9 +155,9 @@
         <p>
           Subscription: {{ subscriptionType }} · {{ isSubscriptionActive ? 'Active' : 'Inactive' }}
         </p>
-        <p>Device: {{ store.activation.deviceName }}</p>
+        <p>Device: {{ store.activation.deviceName || 'Unknown' }}</p>
         <p class="mt-1">
-          Valid until: {{ store.activation.expiresAt ? new Date(store.activation.expiresAt).toLocaleDateString() : 'N/A' }}
+          Valid until: {{ subscriptionExpiresAt ? new Date(subscriptionExpiresAt).toLocaleDateString() : 'N/A' }}
         </p>
       </div>
     </div>
@@ -284,15 +284,6 @@ const handleRedeem = async () => {
 }
 
 const handleConnect = async () => {
-  if (!store.activation?.isActivated) {
-    toast({
-      title: t('error'),
-      description: 'Please activate your subscription before connecting a room',
-      variant: 'destructive',
-    })
-    return
-  }
-
   if (!isSubscriptionActive.value) {
     toast({
       title: t('error'),

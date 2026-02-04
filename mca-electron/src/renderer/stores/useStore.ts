@@ -44,7 +44,7 @@ const defaultSettings: AppSettings = {
 export const useStore = defineStore('app', {
   state: (): AppState => ({
     user: null,
-    activation: { isActivated: false },
+    activation: { isActivated: true },
     settings: defaultSettings,
     currentRoom: null,
     recentRooms: [],
