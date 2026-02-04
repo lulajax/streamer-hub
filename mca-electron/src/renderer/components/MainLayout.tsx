@@ -66,15 +66,6 @@ export function MainLayout() {
   }
 
   const handleSwitchRoom = async (input: string) => {
-    if (!activation?.isActivated) {
-      toast({
-        title: t('error'),
-        description: 'Please activate your subscription before connecting a room',
-        variant: 'destructive',
-      })
-      return
-    }
-
     if (!isSubscriptionActive) {
       toast({
         title: t('error'),
