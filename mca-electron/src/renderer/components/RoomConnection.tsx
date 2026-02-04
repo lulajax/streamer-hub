@@ -113,15 +113,6 @@ export function RoomConnection() {
   }
 
   const handleConnect = async () => {
-    if (!activation?.isActivated) {
-      toast({
-        title: t('error'),
-        description: 'Please activate your subscription before connecting a room',
-        variant: 'destructive',
-      })
-      return
-    }
-
     if (!isSubscriptionActive) {
       toast({
         title: t('error'),

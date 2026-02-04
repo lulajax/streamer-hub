@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.vue",
     "lint:fix": "eslint . --ext .ts,.vue --fix",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
@@ -37,6 +38,7 @@
     "vue-i18n": "^11.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.46.1",
     "@types/node": "^25.2.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
