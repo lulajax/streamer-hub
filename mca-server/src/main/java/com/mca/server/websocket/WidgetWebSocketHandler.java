@@ -23,7 +23,7 @@ public class WidgetWebSocketHandler extends TextWebSocketHandler {
 
     private static final String ATTR_LAST_PAYLOAD = "widget_last_payload";
     private static final String ATTR_LAST_DATA = "widget_last_data";
-    private static final String ATTR_MODE = "widget_mode";
+    private static final String ATTR_VIEW = "widget_view";
     private static final String ATTR_TOKEN = "widget_token";
 
     private final WidgetDataService widgetDataService;
@@ -40,9 +40,9 @@ public class WidgetWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        String mode = resolveMode(session.getUri(), token);
+        String view = resolveView(session.getUri());
         session.getAttributes().put(ATTR_TOKEN, token);
-        session.getAttributes().put(ATTR_MODE, mode);
+        session.getAttributes().put(ATTR_VIEW, view);
 
         tokenSessions.computeIfAbsent(token, key -> ConcurrentHashMap.newKeySet()).add(session);
         sendWidgetUpdate(session);
@@ -68,15 +68,15 @@ public class WidgetWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        Map<String, WidgetPayload> payloadByMode = new ConcurrentHashMap<>();
+        Map<String, WidgetPayload> payloadByView = new ConcurrentHashMap<>();
 
         for (WebSocketSession session : sessions) {
             if (!session.isOpen()) {
                 continue;
             }
 
-            String mode = (String) session.getAttributes().get(ATTR_MODE);
-            WidgetPayload payload = payloadByMode.computeIfAbsent(mode, key -> buildPayload(token, key));
+            String view = (String) session.getAttributes().get(ATTR_VIEW);
+            WidgetPayload payload = payloadByView.computeIfAbsent(view, key -> buildPayload(token, key));
             if (payload == null) {
                 continue;
             }
@@ -100,10 +100,10 @@ public class WidgetWebSocketHandler extends TextWebSocketHandler {
         }
 
         String token = (String) session.getAttributes().get(ATTR_TOKEN);
-        String mode = (String) session.getAttributes().get(ATTR_MODE);
+        String view = (String) session.getAttributes().get(ATTR_VIEW);
 
         try {
-            WidgetPayload payload = buildPayload(token, mode);
+            WidgetPayload payload = buildPayload(token, view);
             if (payload == null) {
                 sendError(session, "Invalid widget token");
                 session.close(CloseStatus.BAD_DATA);
@@ -121,9 +121,9 @@ public class WidgetWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private WidgetPayload buildPayload(String token, String mode) {
+    private WidgetPayload buildPayload(String token, String view) {
         try {
-            WidgetDataDTO data = widgetDataService.getWidgetDataByToken(token, mode);
+            WidgetDataDTO data = widgetDataService.getWidgetDataByToken(token, view);
             String dataJson = objectMapper.writeValueAsString(data);
             String payloadJson = objectMapper.writeValueAsString(Map.of(
                     "type", "widget_data",
@@ -174,27 +174,23 @@ public class WidgetWebSocketHandler extends TextWebSocketHandler {
         return path.substring(idx + 1);
     }
 
-    private String resolveMode(URI uri, String token) {
-        String mode = "preset";
+    private String resolveView(URI uri) {
+        String view = "preview";
         if (uri != null && uri.getQuery() != null) {
             String[] pairs = uri.getQuery().split("&");
             for (String pair : pairs) {
                 String[] kv = pair.split("=", 2);
-                if (kv.length == 2 && "mode".equals(kv[0])) {
-                    mode = kv[1];
+                if (kv.length == 2 && "view".equals(kv[0])) {
+                    view = kv[1];
                     break;
                 }
             }
         }
 
-        if ("session".equals(mode) || "preset".equals(mode)) {
-            return mode;
+        if ("live".equals(view)) {
+            return "live";
         }
 
-        if (token != null && token.startsWith("sess_")) {
-            return "session";
-        }
-
-        return "preset";
+        return "preview";
     }
 }

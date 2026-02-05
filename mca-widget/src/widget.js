@@ -19,7 +19,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('roomId');
     const token = urlParams.get('token');
-    const widgetMode = urlParams.get('mode') || 'preset';
+    const widgetView = urlParams.get('view') || 'preview';
     const apiBase = resolveApiBase(urlParams);
     const ROOM_WS_URL = buildWsUrl(apiBase, '/ws/room');
     const useWidgetTokenMode = !roomId && !!token;
@@ -94,7 +94,7 @@
         const widgetWsUrl = buildWsUrl(
             apiBase,
             `/ws/widget/${encodeURIComponent(token)}`,
-            { mode: widgetMode }
+            { view: widgetView }
         );
 
         try {

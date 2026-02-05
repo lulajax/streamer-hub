@@ -17,20 +17,20 @@ public class WidgetDataService {
     private final SessionService sessionService;
 
     @Transactional(readOnly = true)
-    public WidgetDataDTO getWidgetDataByToken(String token, String mode) {
-        if ("session".equals(mode)) {
-            SessionDTO session = sessionService.getSessionByWidgetToken(token);
-            return buildSessionWidgetData(session);
-        }
-
+    public WidgetDataDTO getWidgetDataByToken(String token, String view) {
         PresetDTO preset = presetService.getPresetByWidgetToken(token);
-        Optional<SessionDTO> latestSession = sessionService.getLatestSessionByPresetId(preset.getId());
-        if (latestSession.isPresent()) {
-            WidgetDataDTO data = buildSessionWidgetData(latestSession.get());
-            data.setToken(preset.getWidgetToken());
-            return data;
+
+        // view=live 返回实时会话数据
+        if ("live".equals(view)) {
+            Optional<SessionDTO> latestSession = sessionService.getLatestSessionByPresetId(preset.getId());
+            if (latestSession.isPresent()) {
+                WidgetDataDTO data = buildSessionWidgetData(latestSession.get());
+                data.setToken(preset.getWidgetToken());
+                return data;
+            }
         }
 
+        // 默认返回预览数据
         return buildPresetWidgetData(preset);
     }
 
