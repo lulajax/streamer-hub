@@ -20,6 +20,16 @@ let mainWindow: BrowserWindow | null = null
 let monitorWindow: BrowserWindow | null = null
 let tiktokConnection: any | null = null
 let tiktokUniqueId = ''
+let tiktokIsConnected = false
+let tiktokEventCount = 0
+
+function logTikTok(message: string, data?: Record<string, unknown>) {
+  if (data) {
+    console.log(`[TikTokLive] ${message}`, data)
+  } else {
+    console.log(`[TikTokLive] ${message}`)
+  }
+}
 
 // Device info storage
 const DEVICE_INFO_FILE = path.join(app.getPath('userData'), 'device-info.json')
@@ -93,6 +103,9 @@ function disconnectTikTok(): void {
     }
     tiktokConnection = null
     tiktokUniqueId = ''
+    tiktokIsConnected = false
+    tiktokEventCount = 0
+    logTikTok('Disconnected')
   }
 }
 
@@ -105,8 +118,39 @@ function mapTikTokUser(data: any) {
   }
 }
 
+async function getRoomInfoFromConnection(connection: any) {
+  if (!connection) return null
+  if (typeof connection.getRoomInfo === 'function') {
+    const info = await connection.getRoomInfo()
+    logTikTok('Room info via getRoomInfo', { roomId: info?.roomId || '' })
+    return info
+  }
+  if (typeof connection.fetchRoomInfo === 'function') {
+    const info = await connection.fetchRoomInfo()
+    logTikTok('Room info via fetchRoomInfo', { roomId: info?.roomId || '' })
+    return info
+  }
+  return null
+}
+
+async function getAvailableGiftsFromConnection(connection: any) {
+  if (!connection) return []
+  if (typeof connection.getAvailableGifts === 'function') {
+    const gifts = await connection.getAvailableGifts()
+    logTikTok('Available gifts via getAvailableGifts', { count: Array.isArray(gifts) ? gifts.length : 0 })
+    return gifts
+  }
+  if (typeof connection.fetchAvailableGifts === 'function') {
+    const gifts = await connection.fetchAvailableGifts()
+    logTikTok('Available gifts via fetchAvailableGifts', { count: Array.isArray(gifts) ? gifts.length : 0 })
+    return gifts
+  }
+  return []
+}
+
 async function getTikTokConnection(uniqueId: string) {
   if (tiktokConnection && tiktokUniqueId === uniqueId) {
+    logTikTok('Reuse connection', { uniqueId })
     return tiktokConnection
   }
 
@@ -117,33 +161,69 @@ async function getTikTokConnection(uniqueId: string) {
       console.warn('Failed to disconnect existing TikTok connection', err)
     }
     tiktokConnection = null
+    tiktokIsConnected = false
+    tiktokEventCount = 0
   }
 
-  const { WebcastPushConnection } = await import('tiktok-live-connector')
-  const connection = new WebcastPushConnection(uniqueId, {
+  const tiktokModule: any = await import('tiktok-live-connector')
+  const TikTokLiveConnection =
+    tiktokModule.TikTokLiveConnection ?? tiktokModule.WebcastPushConnection ?? tiktokModule.default
+  const WebcastEvent = tiktokModule.WebcastEvent ?? {
+    GIFT: 'gift',
+    CHAT: 'chat',
+    MEMBER: 'member',
+    LIKE: 'like',
+  }
+  const ControlEvent = tiktokModule.ControlEvent ?? {
+    CONNECTED: 'connected',
+    DISCONNECTED: 'disconnected',
+    ERROR: 'error',
+  }
+
+  logTikTok('Create connection', { uniqueId })
+  const connection = new TikTokLiveConnection(uniqueId, {
     enableExtendedGiftInfo: true,
+    fetchRoomInfoOnConnect: true,
   })
 
-  connection.on('gift', (data: any) => {
+  connection.on(WebcastEvent.GIFT, (data: any) => {
+    const giftInfo = data.gift ?? data.giftInfo ?? {}
+    const diamondCost = giftInfo.diamondCost ?? giftInfo.diamondCount ?? 0
+    const quantity = data.repeatCount ?? data.quantity ?? 1
+    tiktokEventCount += 1
+    logTikTok('Gift event', {
+      uniqueId,
+      giftId: giftInfo.giftId || data.giftId || '',
+      user: data.user?.uniqueId || '',
+      totalCost: diamondCost * quantity,
+      count: tiktokEventCount,
+    })
     sendTikTokEvent({
       type: 'gift',
       payload: {
         user: mapTikTokUser(data),
         gift: {
-          giftId: data.gift?.giftId || '',
-          giftName: data.gift?.name || '',
-          giftIcon: data.gift?.image || '',
-          diamondCost: data.gift?.diamondCount || 0,
-          quantity: data.repeatCount || 1,
-          totalCost: (data.gift?.diamondCount || 0) * (data.repeatCount || 1),
+          giftId: giftInfo.giftId || data.giftId || '',
+          giftName: giftInfo.name || data.giftName || '',
+          giftIcon: giftInfo.image || '',
+          diamondCost,
+          quantity,
+          totalCost: diamondCost * quantity,
         },
-        repeatCount: data.repeatCount || 1,
+        repeatCount: data.repeatCount || quantity,
         repeatEnd: data.repeatEnd ?? true,
       },
     })
   })
 
-  connection.on('chat', (data: any) => {
+  connection.on(WebcastEvent.CHAT, (data: any) => {
+    tiktokEventCount += 1
+    logTikTok('Chat event', {
+      uniqueId,
+      user: data.user?.uniqueId || '',
+      comment: data.comment ? String(data.comment).slice(0, 80) : '',
+      count: tiktokEventCount,
+    })
     sendTikTokEvent({
       type: 'chat',
       payload: {
@@ -153,7 +233,13 @@ async function getTikTokConnection(uniqueId: string) {
     })
   })
 
-  connection.on('member', (data: any) => {
+  connection.on(WebcastEvent.MEMBER, (data: any) => {
+    tiktokEventCount += 1
+    logTikTok('Member event', {
+      uniqueId,
+      user: data.user?.uniqueId || '',
+      count: tiktokEventCount,
+    })
     sendTikTokEvent({
       type: 'member',
       payload: {
@@ -162,7 +248,14 @@ async function getTikTokConnection(uniqueId: string) {
     })
   })
 
-  connection.on('like', (data: any) => {
+  connection.on(WebcastEvent.LIKE, (data: any) => {
+    tiktokEventCount += 1
+    logTikTok('Like event', {
+      uniqueId,
+      user: data.user?.uniqueId || '',
+      likeCount: data.likeCount || 1,
+      count: tiktokEventCount,
+    })
     sendTikTokEvent({
       type: 'like',
       payload: {
@@ -173,20 +266,29 @@ async function getTikTokConnection(uniqueId: string) {
     })
   })
 
-  connection.on('connected', (state: any) => {
-    sendTikTokEvent({ type: 'connected', payload: { roomId: state?.roomId } })
+  connection.on(ControlEvent.CONNECTED, (state: any) => {
+    if (!tiktokIsConnected) {
+      tiktokIsConnected = true
+      logTikTok('Connected', { uniqueId, roomId: state?.roomId })
+      sendTikTokEvent({ type: 'connected', payload: { roomId: state?.roomId } })
+    }
   })
 
-  connection.on('disconnected', () => {
+  connection.on(ControlEvent.DISCONNECTED, () => {
+    tiktokIsConnected = false
+    logTikTok('Disconnected event', { uniqueId })
     sendTikTokEvent({ type: 'disconnected' })
   })
 
-  connection.on('error', (err: Error) => {
-    sendTikTokEvent({ type: 'error', payload: { message: err.message } })
+  connection.on(ControlEvent.ERROR, (err: any) => {
+    const message = err instanceof Error ? err.message : err?.message || 'TikTok Live error'
+    logTikTok('Error event', { uniqueId, message })
+    sendTikTokEvent({ type: 'error', payload: { message } })
   })
 
   tiktokConnection = connection
   tiktokUniqueId = uniqueId
+  tiktokIsConnected = false
 
   return connection
 }
@@ -370,51 +472,72 @@ ipcMain.handle('show-open-dialog', async (_, options) => {
 })
 
 ipcMain.handle('tiktok-live-fetch-is-live', async (_, uniqueId: string) => {
-  const connection = await getTikTokConnection(uniqueId)
-  const result = await connection.fetchIsLive()
-  return Boolean(result?.isLive)
+  try {
+    logTikTok('fetchIsLive', { uniqueId })
+    const connection = await getTikTokConnection(uniqueId)
+    const info = await getRoomInfoFromConnection(connection)
+    if (!info) return false
+    if (typeof info.isLive === 'boolean') return info.isLive
+    return true
+  } catch {
+    logTikTok('fetchIsLive failed', { uniqueId })
+    return false
+  }
 })
 
 ipcMain.handle('tiktok-live-get-room-info', async (_, uniqueId: string) => {
+  logTikTok('getRoomInfo', { uniqueId })
   const connection = await getTikTokConnection(uniqueId)
-  const info = await connection.fetchRoomInfo()
+  const info = await getRoomInfoFromConnection(connection)
   if (!info) return null
+  const owner = info.owner || info.host || info.user || {}
+  const viewerCount = info.viewerCount ?? info.stats?.viewerCount ?? 0
+  const likeCount = info.likeCount ?? info.stats?.likeCount ?? 0
+  const isLive = typeof info.isLive === 'boolean' ? info.isLive : true
   return {
     roomId: info.roomId || '',
     title: info.title || '',
     owner: {
-      userId: info.owner?.userId || '',
-      userName: info.owner?.uniqueId || '',
-      userNickname: info.owner?.nickname || '',
-      userAvatar: info.owner?.avatarThumb || '',
+      userId: owner.userId || '',
+      userName: owner.uniqueId || '',
+      userNickname: owner.nickname || '',
+      userAvatar: owner.avatarThumb || owner.avatar || '',
     },
-    viewerCount: info.viewerCount || 0,
-    likeCount: info.likeCount || 0,
-    isLive: true,
+    viewerCount,
+    likeCount,
+    isLive,
   }
 })
 
 ipcMain.handle('tiktok-live-get-available-gifts', async (_, uniqueId: string) => {
+  logTikTok('getAvailableGifts', { uniqueId })
   const connection = await getTikTokConnection(uniqueId)
-  const gifts = await connection.fetchAvailableGifts()
+  const gifts = await getAvailableGiftsFromConnection(connection)
   if (!Array.isArray(gifts)) return []
   return gifts.map((gift: any) => ({
-    giftId: gift.giftId || '',
-    giftName: gift.name || '',
-    giftIcon: gift.image || '',
-    diamondCost: gift.diamondCount || 0,
+    giftId: gift.giftId || gift.id || '',
+    giftName: gift.name || gift.giftName || '',
+    giftIcon: gift.image || gift.giftIcon || '',
+    diamondCost: gift.diamondCost ?? gift.diamondCount ?? 0,
     quantity: 1,
-    totalCost: gift.diamondCount || 0,
+    totalCost: gift.diamondCost ?? gift.diamondCount ?? 0,
   }))
 })
 
 ipcMain.handle('tiktok-live-connect', async (_, uniqueId: string) => {
+  logTikTok('connect', { uniqueId })
   const connection = await getTikTokConnection(uniqueId)
-  await connection.connect()
+  const state = await connection.connect()
+  const roomId = state?.roomId || (await getRoomInfoFromConnection(connection))?.roomId
+  if (roomId && !tiktokIsConnected) {
+    tiktokIsConnected = true
+    sendTikTokEvent({ type: 'connected', payload: { roomId } })
+  }
   return { success: true }
 })
 
 ipcMain.handle('tiktok-live-disconnect', () => {
+  logTikTok('disconnect')
   disconnectTikTok()
   return { success: true }
 })

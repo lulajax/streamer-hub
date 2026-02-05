@@ -33,7 +33,7 @@
     "socket.io-client": "^4.7.4",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
-    "tiktok-live-connector": "^1.2.3",
+    "tiktok-live-connector": "2.0.0",
     "vue": "^3.5.27",
     "vue-i18n": "^11.2.8"
   },
