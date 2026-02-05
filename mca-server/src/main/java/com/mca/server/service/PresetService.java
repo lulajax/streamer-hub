@@ -276,36 +276,6 @@ public class PresetService {
         return "/widget/" + widgetToken + "?mode=preset";
     }
 
-    @Transactional
-    public PresetDTO setDefault(String userId, String presetId, String deviceId) {
-        validateDeviceOwnership(userId, deviceId);
-        Preset preset = getPresetForUser(presetId, userId);
-        if (!deviceId.equals(preset.getDeviceId())) {
-            throw new BusinessException("无权限访问该设备");
-        }
-
-        List<Preset> devicePresets = presetRepository.findByDeviceIdAndUserId(deviceId, userId);
-
-        for (Preset p : devicePresets) {
-            p.setIsDefault(p.getId().equals(presetId));
-        }
-
-        presetRepository.saveAll(devicePresets);
-
-        log.info("Default preset set: {} for device: {}", presetId, deviceId);
-        return PresetDTO.fromEntity(preset);
-    }
-
-    @Transactional(readOnly = true)
-    public PresetDTO getDefaultPreset(String userId, String deviceId) {
-        validateDeviceOwnership(userId, deviceId);
-        return presetRepository.findByDeviceIdAndUserIdAndIsDefaultTrue(deviceId, userId)
-                .stream()
-                .findFirst()
-                .map(PresetDTO::fromEntity)
-                .orElseThrow(() -> new BusinessException("没有默认配置"));
-    }
-
     @Transactional(readOnly = true)
     public long countByDeviceId(String userId, String deviceId) {
         validateDeviceOwnership(userId, deviceId);

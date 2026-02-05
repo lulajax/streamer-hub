@@ -18,17 +18,5 @@ public interface PresetRepository extends JpaRepository<Preset, String> {
 
     long countByDeviceIdAndUserId(String deviceId, String userId);
 
-    List<Preset> findByDeviceIdAndIsDefaultTrue(String deviceId);
-
-    List<Preset> findByDeviceIdAndUserIdAndIsDefaultTrue(String deviceId, String userId);
-
     Optional<Preset> findByWidgetToken(String widgetToken);
-
-    List<Preset> findByGameMode(Preset.GameMode gameMode);
-
-    List<Preset> findByIsDefaultTrue();
-
-    Optional<Preset> findByName(String name);
-
-    long countByGameMode(Preset.GameMode gameMode);
 }

@@ -13,6 +13,4 @@ public interface AnchorRepository extends JpaRepository<Anchor, String> {
     List<Anchor> findByUserId(String userId);
 
     Optional<Anchor> findByUserIdAndTiktokId(String userId, String tiktokId);
-
-    boolean existsByUserIdAndId(String userId, String id);
 }

@@ -156,25 +156,6 @@ public class SessionController {
         return ResponseEntity.ok(ApiResponse.success(session));
     }
 
-    @Operation(summary = "快速开始", description = "使用默认配置快速开始一个会话")
-    @io.swagger.v3.oas.annotations.responses.ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "快速开始成功"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "设备没有默认配置"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未认证或 Token 无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "无权限访问该设备"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "房间不存在"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    @PostMapping("/quick-start")
-    public ResponseEntity<ApiResponse<SessionDTO>> quickStart(
-            @Parameter(description = "房间ID", required = true, example = "room_abc123") @RequestParam String roomId,
-            @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
-            @RequestHeader("X-Device-Id") String deviceId) {
-        String userId = SecurityUtil.getCurrentUserId();
-        SessionDTO session = sessionService.quickStartWithDefault(roomId, deviceId, userId);
-        return ResponseEntity.ok(ApiResponse.success("Quick started", session));
-    }
-
     @Operation(summary = "获取挂件链接", description = "获取会话的挂件OBS嵌入链接")
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),

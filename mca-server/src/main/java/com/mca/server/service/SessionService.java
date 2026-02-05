@@ -63,16 +63,6 @@ public class SessionService {
         return SessionDTO.fromEntity(saved);
     }
 
-    @Transactional
-    public SessionDTO quickStartWithDefault(String roomId, String deviceId, String userId) {
-        Preset defaultPreset = presetRepository.findByDeviceIdAndUserIdAndIsDefaultTrue(deviceId, userId)
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No default preset found for device"));
-
-        return createSession(roomId, defaultPreset.getId(), userId);
-    }
-
     @Transactional(readOnly = true)
     public String getWidgetUrl(String sessionId) {
         Session session = sessionRepository.findById(sessionId)

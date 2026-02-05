@@ -263,43 +263,6 @@ public class PresetController {
         String previewUrl = presetService.generatePreviewUrl(userId, presetId);
         return ResponseEntity.ok(ApiResponse.success(previewUrl));
     }
-
-    @Operation(summary = "设为默认配置", description = "将指定预设设为设备的默认配置")
-    @io.swagger.v3.oas.annotations.responses.ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "设置成功"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未认证或 Token 无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "无权限访问该设备"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "预设不存在"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    @PostMapping("/{presetId}/set-default")
-    public ResponseEntity<ApiResponse<PresetDTO>> setDefault(
-            @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
-            @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
-            @RequestHeader("X-Device-Id") String deviceId) {
-        String userId = SecurityUtil.getCurrentUserId();
-        PresetDTO preset = presetService.setDefault(userId, presetId, deviceId);
-        return ResponseEntity.ok(ApiResponse.success("已设为默认配置", preset));
-    }
-
-    @Operation(summary = "获取默认配置", description = "获取设备的默认配置预设")
-    @io.swagger.v3.oas.annotations.responses.ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "查询成功"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "设备ID无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未认证或 Token 无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "无权限访问该设备"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "设备没有默认配置"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    @GetMapping("/default")
-    public ResponseEntity<ApiResponse<PresetDTO>> getDefaultPreset(
-            @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
-            @RequestHeader("X-Device-Id") String deviceId) {
-        String userId = SecurityUtil.getCurrentUserId();
-        PresetDTO preset = presetService.getDefaultPreset(userId, deviceId);
-        return ResponseEntity.ok(ApiResponse.success(preset));
-    }
 }
 
 

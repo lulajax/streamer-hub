@@ -22,22 +22,7 @@ public interface SessionRepository extends JpaRepository<Session, String> {
     Optional<Session> findByRoomIdAndStatus(String roomId, Session.SessionStatus status);
 
     Optional<Session> findByWidgetToken(String widgetToken);
-
-    List<Session> findByStatus(Session.SessionStatus status);
     
     @Query("SELECT s FROM Session s WHERE s.room.id = :roomId AND s.status != 'ENDED' ORDER BY s.createdAt DESC")
     List<Session> findActiveSessionsByRoomId(@Param("roomId") String roomId);
-    
-    @Query("SELECT s FROM Session s WHERE s.createdAt >= :startDate AND s.createdAt <= :endDate")
-    List<Session> findByDateRange(@Param("startDate") LocalDateTime startDate, 
-                                   @Param("endDate") LocalDateTime endDate);
-    
-    @Query("SELECT SUM(s.totalDiamonds) FROM Session s WHERE s.room.id = :roomId")
-    Long sumTotalDiamondsByRoomId(@Param("roomId") String roomId);
-    
-    @Query("SELECT COUNT(s) FROM Session s WHERE s.room.id = :roomId")
-    long countByRoomId(@Param("roomId") String roomId);
-    
-    @Query("SELECT s.gameMode, COUNT(s), SUM(s.totalDiamonds) FROM Session s GROUP BY s.gameMode")
-    List<Object[]> getStatsByGameMode();
 }
