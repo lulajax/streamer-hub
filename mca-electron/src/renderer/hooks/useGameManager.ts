@@ -33,7 +33,7 @@ export interface GameManagerState {
 export function useGameManager() {
   const { toast } = useToast()
   const { anchors, currentSession, user } = useStore()
-  const { status, connect, disconnect, sendState, sendEvent } = useRoomWebSocket()
+  const { status, connect, disconnect, switchRoom, sendState, sendEvent } = useRoomWebSocket()
   const tiktok = useTikTokLive()
   const [tiktokAnchorMap, setTiktokAnchorMap] = useState<Record<string, string>>({})
   
@@ -110,6 +110,41 @@ export function useGameManager() {
 
     return true
   }, [connect, tiktok, user])
+
+  // Switch to a different room without disconnecting WebSocket
+  const switchProducerRoom = useCallback(async (roomId: string) => {
+    if (!user?.accessToken) {
+      toast({
+        title: 'Error',
+        description: 'Not authenticated',
+        variant: 'destructive',
+      })
+      return false
+    }
+
+    // Disconnect from current TikTok room
+    await tiktok.disconnect()
+
+    roomIdRef.current = roomId
+
+    // Switch WebSocket room without disconnecting
+    switchRoom(roomId, user.accessToken, 'producer')
+
+    // Connect to new TikTok room
+    await tiktok.connect(roomId)
+
+    setManagerState(prev => ({
+      ...prev,
+      roomId,
+    }))
+
+    toast({
+      title: 'Room Switched',
+      description: `Switched to room: ${roomId}`,
+    })
+
+    return true
+  }, [switchRoom, tiktok, user, toast])
 
   // Start game
   const startGame = useCallback(() => {
@@ -318,10 +353,11 @@ export function useGameManager() {
     // State
     ...managerState,
     wsStatus: status,
-    
+
     // Actions
     initializeGame,
     connectProducer,
+    switchProducerRoom,
     startGame,
     pauseGame,
     stopGame,

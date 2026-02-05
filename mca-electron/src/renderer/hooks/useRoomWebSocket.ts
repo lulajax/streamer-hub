@@ -64,16 +64,19 @@ const HEARTBEAT_INTERVAL = 30000 // 30 seconds
 
 /**
  * Hook for Room WebSocket connection (Producer pattern)
- * 
+ *
  * Usage:
- * const { connect, disconnect, sendState, sendEvent, status } = useRoomWebSocket()
- * 
+ * const { connect, disconnect, switchRoom, sendState, sendEvent, status } = useRoomWebSocket()
+ *
  * // Connect as producer
  * connect('room_123', 'jwt_token', 'producer')
- * 
+ *
+ * // Switch room without disconnecting
+ * switchRoom('room_456', 'jwt_token', 'producer')
+ *
  * // Send state
  * sendState({ mode: 'sticker_dance', round: 1, score: { a: 10, b: 5 } })
- * 
+ *
  * // Send event
  * sendEvent({ eventType: 'GIFT_TRIGGER', giftId: 5655, user: 'tom' })
  */
@@ -276,6 +279,40 @@ export function useRoomWebSocket() {
     }
   }, [handleOpen, handleMessage, handleClose, handleError, clearTimers])
 
+  // Switch room without disconnecting WebSocket
+  const switchRoom = useCallback((roomId: string, token: string, role: WsRole) => {
+    console.log('[WebSocket] Switching room to:', roomId)
+
+    // Store new connection params for reconnection
+    pendingRoomIdRef.current = roomId
+    pendingTokenRef.current = token
+    pendingRoleRef.current = role
+    seqRef.current = 0
+
+    // Reset joined state
+    setStatus(prev => ({
+      ...prev,
+      isJoined: false,
+      roomId,
+      role,
+      error: null,
+      lastSeq: 0,
+    }))
+
+    // If already connected, send join message directly
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      sendMessage({
+        type: 'join',
+        role,
+        roomId,
+        token,
+      })
+    } else {
+      // If not connected, fall back to connect behavior
+      connect(roomId, token, role)
+    }
+  }, [sendMessage, connect])
+
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
     console.log('[WebSocket] Disconnecting...')
@@ -349,10 +386,11 @@ export function useRoomWebSocket() {
   return {
     // State
     status,
-    
+
     // Actions
     connect,
     disconnect,
+    switchRoom,
     sendState,
     sendEvent,
   }

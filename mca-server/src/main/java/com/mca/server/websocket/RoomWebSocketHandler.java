@@ -114,33 +114,44 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
     }
     
     /**
-     * Handle join message - first message after connection
+     * Handle join message - first message after connection or room switch
      */
     private void handleJoin(WebSocketSession session, JsonNode message) {
         String roomId = message.has("roomId") ? message.get("roomId").asText() : null;
         String role = message.has("role") ? message.get("role").asText() : null;
         String token = message.has("token") ? message.get("token").asText() : null;
-        
+
         // Validate required fields
         if (roomId == null || roomId.isEmpty()) {
             sendError(session, "Missing roomId");
             closeSession(session);
             return;
         }
-        
+
         if (role == null || (!role.equals("producer") && !role.equals("consumer"))) {
             sendError(session, "Invalid or missing role. Must be 'producer' or 'consumer'");
             closeSession(session);
             return;
         }
-        
+
         // Validate token
         if (!validateToken(token)) {
             sendError(session, "Invalid or expired token");
             closeSession(session);
             return;
         }
-        
+
+        // Check if already joined to another room - cleanup first
+        Boolean alreadyJoined = (Boolean) session.getAttributes().get(ATTR_JOINED);
+        String oldRoomId = (String) session.getAttributes().get(ATTR_ROOM_ID);
+        String oldRole = (String) session.getAttributes().get(ATTR_ROLE);
+
+        if (alreadyJoined != null && alreadyJoined && oldRoomId != null && !oldRoomId.equals(roomId)) {
+            log.info("Switching room: session={}, from {} to {}, oldRole={}, newRole={}",
+                    session.getId(), oldRoomId, roomId, oldRole, role);
+            cleanupSession(session, oldRoomId, oldRole);
+        }
+
         // Store session attributes
         session.getAttributes().put(ATTR_ROOM_ID, roomId);
         session.getAttributes().put(ATTR_ROLE, role);

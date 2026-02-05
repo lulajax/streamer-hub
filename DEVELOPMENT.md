@@ -77,7 +77,8 @@ mca-replica/
 │   │       │   │   ├── PresetDTO.java
 │   │       │   │   └── SessionDTO.java
 │   │       │   ├── websocket/       # WebSocket 处理
-│   │       │   │   └── GiftWebSocketHandler.java
+│   │       │   │   ├── RoomWebSocketHandler.java
+│   │       │   │   └── WidgetWebSocketHandler.java
 │   │       │   └── exception/       # 异常处理
 │   │       │       └── GlobalExceptionHandler.java
 │   │       └── resources/
