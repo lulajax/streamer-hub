@@ -25,7 +25,12 @@ export default defineConfig(async () => {
               minify: false,
               outDir: path.join(projectRoot, 'dist/main'),
               rollupOptions: {
-                external: ['electron'],
+                external: (source) => {
+                  if (source === 'electron') return true
+                  if (source === 'tiktok-live-connector') return true
+                  if (source.startsWith('tiktok-live-connector/')) return true
+                  return false
+                },
               },
             },
           },

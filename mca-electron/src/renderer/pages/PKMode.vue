@@ -373,6 +373,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from '@/stores/useStore'
 import { useToast } from '@/hooks/use-toast'
+import { connectTikTokLiveForRoom } from '@/lib/tiktokLive'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
@@ -431,6 +432,7 @@ const attackerScore = ref(0)
 const defenders = ref<Anchor[]>([])
 const attackers = ref<Anchor[]>([])
 const activeTab = ref('teams')
+const isTikTokConnecting = ref(false)
 
 const totalDefenderScore = computed(() =>
   defenders.value.reduce((sum, a) => sum + a.totalScore, 0) + defenderScore.value
@@ -451,7 +453,41 @@ const availableAnchors = computed(() =>
   )
 )
 
-const handleStart = () => {
+const connectTikTok = async () => {
+  if (isTikTokConnecting.value) return false
+
+  const roomId = store.currentRoom?.tiktokId
+  if (!roomId) {
+    toast({
+      title: 'Error',
+      description: 'Please connect a TikTok room first',
+      variant: 'destructive',
+    })
+    return false
+  }
+
+  isTikTokConnecting.value = true
+  const result = await connectTikTokLiveForRoom(roomId)
+  isTikTokConnecting.value = false
+
+  if (!result.success) {
+    toast({
+      title: 'Error',
+      description: result.error || 'Failed to connect to TikTok Live',
+      variant: 'destructive',
+    })
+    return false
+  }
+
+  toast({
+    title: 'TikTok Live Connected',
+    description: `Listening to @${roomId}`,
+  })
+
+  return true
+}
+
+const handleStart = async () => {
   if (defenders.value.length === 0 || attackers.value.length === 0) {
     toast({
       title: 'Error',
@@ -460,6 +496,8 @@ const handleStart = () => {
     })
     return
   }
+  const connected = await connectTikTok()
+  if (!connected) return
   isRunning.value = true
   toast({
     title: 'PK Started',

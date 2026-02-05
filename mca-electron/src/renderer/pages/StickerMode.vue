@@ -275,6 +275,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from '@/stores/useStore'
 import { useToast } from '@/hooks/use-toast'
+import { connectTikTokLiveForRoom } from '@/lib/tiktokLive'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
@@ -323,8 +324,45 @@ const config = ref<StickerModeConfig>({
 
 const isRunning = ref(false)
 const activeTab = ref('config')
+const isTikTokConnecting = ref(false)
 
-const handleStart = () => {
+const connectTikTok = async () => {
+  if (isTikTokConnecting.value) return false
+
+  const roomId = store.currentRoom?.tiktokId
+  if (!roomId) {
+    toast({
+      title: 'Error',
+      description: 'Please connect a TikTok room first',
+      variant: 'destructive',
+    })
+    return false
+  }
+
+  isTikTokConnecting.value = true
+  const result = await connectTikTokLiveForRoom(roomId)
+  isTikTokConnecting.value = false
+
+  if (!result.success) {
+    toast({
+      title: 'Error',
+      description: result.error || 'Failed to connect to TikTok Live',
+      variant: 'destructive',
+    })
+    return false
+  }
+
+  toast({
+    title: 'TikTok Live Connected',
+    description: `Listening to @${roomId}`,
+  })
+
+  return true
+}
+
+const handleStart = async () => {
+  const connected = await connectTikTok()
+  if (!connected) return
   isRunning.value = true
   toast({
     title: 'Sticker Mode Started',
