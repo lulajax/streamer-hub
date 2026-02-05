@@ -50,24 +50,20 @@ mca-replica/
 │   │       │   │   ├── WebSocketConfig.java
 │   │       │   │   └── CorsConfig.java
 │   │       │   ├── controller/      # API 控制器
-│   │       │   │   ├── ActivationController.java
 │   │       │   │   ├── GiftController.java
 │   │       │   │   ├── SessionController.java
 │   │       │   │   └── ReportController.java
 │   │       │   ├── service/         # 业务逻辑
-│   │       │   │   ├── ActivationService.java
 │   │       │   │   ├── GiftService.java
 │   │       │   │   ├── SessionService.java
 │   │       │   │   └── ReportService.java
 │   │       │   ├── repository/      # 数据访问
-│   │       │   │   ├── ActivationRepository.java
 │   │       │   │   ├── RoomRepository.java
 │   │       │   │   ├── AnchorRepository.java
 │   │       │   │   ├── GiftRecordRepository.java
 │   │       │   │   ├── PresetRepository.java
 │   │       │   │   └── SessionRepository.java
 │   │       │   ├── entity/          # 实体类
-│   │       │   │   ├── Activation.java
 │   │       │   │   ├── Room.java
 │   │       │   │   ├── Anchor.java
 │   │       │   │   ├── GiftRecord.java
@@ -76,8 +72,6 @@ mca-replica/
 │   │       │   │   └── Round.java
 │   │       │   ├── dto/             # 数据传输对象
 │   │       │   │   ├── ApiResponse.java
-│   │       │   │   ├── ActivationRequest.java
-│   │       │   │   ├── ActivationResponse.java
 │   │       │   │   ├── GiftRecordDTO.java
 │   │       │   │   ├── AnchorDTO.java
 │   │       │   │   ├── PresetDTO.java
@@ -184,9 +178,9 @@ redis-server
 
 ## 核心功能模块
 
-### 1. 激活系统
+### 1. 订阅激活系统
 - 16位激活码验证
-- 设备绑定
+- 用户订阅绑定
 - 有效期管理
 
 ### 2. 直播间连接
@@ -228,15 +222,6 @@ redis-server
 - 多维度统计分析
 
 ## API 文档
-
-### 激活相关
-
-```
-POST   /api/activation              # 激活设备
-GET    /api/activation/check/{deviceId}  # 检查激活状态
-POST   /api/activation/deactivate/{deviceId}  # 取消激活
-POST   /api/activation/generate     # 生成激活码
-```
 
 ### 礼物相关
 

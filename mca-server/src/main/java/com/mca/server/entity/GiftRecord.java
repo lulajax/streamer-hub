@@ -49,6 +49,21 @@ public class GiftRecord {
     
     @Column(name = "anchor_name")
     private String anchorName;
+
+    @Column(name = "anchor_avatar")
+    private String anchorAvatar;
+
+    @Column(name = "to_member_id")
+    private String toMemberId;
+
+    @Column(name = "to_member_nickname")
+    private String toMemberNickname;
+
+    @Column(name = "message_id")
+    private String messageId;
+
+    @Column(name = "message_timestamp")
+    private Long messageTimeStamp;
     
     @Column(name = "quantity", nullable = false)
     private Integer quantity;

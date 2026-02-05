@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,38 +19,39 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-    name = "anchors",
-    indexes = {
-        @Index(name = "idx_anchors_user_id", columnList = "user_id"),
-        @Index(name = "idx_anchors_user_tiktok", columnList = "user_id, tiktok_id")
-    }
+        name = "user_devices",
+        uniqueConstraints = @UniqueConstraint(name = "uk_user_device", columnNames = {"user_id", "device_id"}),
+        indexes = @Index(name = "idx_user_devices_user_id", columnList = "user_id")
 )
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Anchor {
-    
+public class UserDevice {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private String userId;
-    
-    @Column(name = "tiktok_id")
-    private String tiktokId;
-    
-    @Column(name = "name", nullable = false)
-    private String name;
-    
-    @Column(name = "avatar_url")
-    private String avatarUrl;
-    
+
+    @Column(name = "device_id", nullable = false)
+    private String deviceId;
+
+    @Column(name = "device_name")
+    private String deviceName;
+
+    @Column(name = "first_seen_at")
+    private LocalDateTime firstSeenAt;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-    
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

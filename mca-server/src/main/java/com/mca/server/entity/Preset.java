@@ -1,6 +1,17 @@
 package com.mca.server.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +26,7 @@ import java.util.List;
 @Entity
 @Table(name = "presets", indexes = {
     @Index(name = "idx_device_id", columnList = "device_id"),
+    @Index(name = "idx_presets_user_id", columnList = "user_id"),
     @Index(name = "idx_widget_token", columnList = "widget_token", unique = true)
 })
 @Data
@@ -37,9 +49,12 @@ public class Preset {
     @Column(name = "device_id", nullable = false)
     private String deviceId;
 
+    @Column(name = "user_id")
+    private String userId;
+
     @OneToMany(mappedBy = "preset", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @Builder.Default
-    private List<Anchor> anchors = new ArrayList<>();
+    private List<PresetAnchor> anchors = new ArrayList<>();
 
     @Column(name = "target_gifts_json", columnDefinition = "TEXT")
     private String targetGiftsJson;

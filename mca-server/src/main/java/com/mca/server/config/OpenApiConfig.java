@@ -44,7 +44,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("auth")
                 .displayName("认证模块")
-                .pathsToMatch("/auth/**", "/activation/**", "/api/auth/**", "/api/activation/**")
+                .pathsToMatch("/auth/**", "/api/auth/**")
                 .build();
     }
 
@@ -101,7 +101,6 @@ public class OpenApiConfig {
                 .pathsToMatch("/**")
                 .pathsToExclude(
                         "/auth/**",
-                        "/activation/**",
                         "/sessions/**",
                         "/gifts/**",
                         "/reports/**",
@@ -110,7 +109,6 @@ public class OpenApiConfig {
                         "/ws-monitor/**",
                         "/actuator/**",
                         "/api/auth/**",
-                        "/api/activation/**",
                         "/api/sessions/**",
                         "/api/gifts/**",
                         "/api/reports/**",

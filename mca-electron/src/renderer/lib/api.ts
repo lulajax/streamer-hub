@@ -9,6 +9,13 @@ export interface ApiFetchOptions extends RequestInit {
 const DEFAULT_API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
+export const getApiBaseUrl = () => DEFAULT_API_BASE_URL
+
+export const getServerBaseUrl = () => {
+  const base = getApiBaseUrl()
+  return base.endsWith('/api') ? base.slice(0, -4) : base
+}
+
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url)
 
 const joinUrl = (baseUrl: string, path: string) => {

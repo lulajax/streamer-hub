@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Data
@@ -59,7 +60,15 @@ public class PresetDTO {
                 .name(entity.getName())
                 .deviceId(entity.getDeviceId())
                 .gameMode(entity.getGameMode())
-                .anchors(entity.getAnchors() != null ? entity.getAnchors().stream().map(AnchorDTO::fromEntity).toList() : null)
+                .anchors(entity.getAnchors() != null
+                        ? entity.getAnchors().stream()
+                        .sorted(Comparator.comparing(
+                                presetAnchor -> presetAnchor.getDisplayOrder(),
+                                Comparator.nullsLast(Integer::compareTo)
+                        ))
+                        .map(AnchorDTO::fromPresetAnchor)
+                        .toList()
+                        : null)
                 .targetGiftsJson(entity.getTargetGiftsJson())
                 .configJson(entity.getConfigJson())
                 .widgetSettingsJson(entity.getWidgetSettingsJson())

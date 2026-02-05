@@ -100,6 +100,7 @@
         <ScrollArea class="h-full">
           <div class="p-6">
             <Dashboard v-if="activeTab === 'dashboard'" />
+            <Presets v-if="activeTab === 'presets'" />
             <StickerMode v-if="activeTab === 'sticker'" />
             <PKMode v-if="activeTab === 'pk'" />
             <FreeMode v-if="activeTab === 'free'" />
@@ -184,16 +185,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/hooks/use-toast'
 import { useStore } from '@/stores/useStore'
+import { listUserAnchors } from '@/lib/anchorsApi'
+import { getDefaultPreset, listPresets } from '@/lib/presetsApi'
+import { mapApiPreset, mapApiUserAnchor } from '@/lib/mappers'
 import Button from '@/components/ui/Button.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Input from '@/components/ui/Input.vue'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ScrollArea from '@/components/ui/ScrollArea.vue'
 import Dashboard from '@/pages/Dashboard.vue'
+import Presets from '@/pages/Presets.vue'
 import StickerMode from '@/pages/StickerMode.vue'
 import PKMode from '@/pages/PKMode.vue'
 import FreeMode from '@/pages/FreeMode.vue'
@@ -202,6 +207,7 @@ import Reports from '@/pages/Reports.vue'
 import Settings from '@/pages/Settings.vue'
 import {
   LayoutDashboard,
+  ListChecks,
   Sticker,
   Swords,
   Users,
@@ -222,7 +228,10 @@ const { t, locale } = useI18n()
 const { toast } = useToast()
 const store = useStore()
 
-const activeTab = ref('dashboard')
+const activeTab = computed({
+  get: () => store.activeTab,
+  set: (value) => store.setActiveTab(value),
+})
 const isSwitchDialogOpen = ref(false)
 const roomInput = ref('')
 const isSwitching = ref(false)
@@ -238,6 +247,7 @@ const isSubscriptionActive = computed(() => {
 
 const navItems = computed(() => [
   { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
+  { id: 'presets', label: t('presets'), icon: ListChecks },
   { id: 'sticker', label: t('stickerMode'), icon: Sticker },
   { id: 'pk', label: t('pkMode'), icon: Swords },
   { id: 'free', label: t('freeMode'), icon: Users },
@@ -311,6 +321,86 @@ const handleSwitchRoom = async (input: string) => {
     isSwitching.value = false
   }
 }
+
+const loadPresetData = async () => {
+  if (!store.user?.accessToken || !isSubscriptionActive.value) return
+
+  try {
+    const [anchorsResponse, presetsResponse] = await Promise.all([
+      listUserAnchors(),
+      listPresets(),
+    ])
+
+    if (anchorsResponse?.success) {
+      const anchors = (anchorsResponse.data ?? []).map(mapApiUserAnchor)
+      store.setUserAnchors(anchors)
+    } else {
+      store.setUserAnchors([])
+    }
+
+    if (presetsResponse?.success) {
+      const presets = (presetsResponse.data ?? []).map(mapApiPreset)
+      store.setPresets(presets)
+
+      const resolveSelection = (mode: 'sticker' | 'pk' | 'free') => {
+        const existingId = store.presetSelections[mode]
+        const existing = existingId ? presets.find((item) => item.id === existingId) : null
+        if (existing) return existing
+        const candidates = presets.filter((item) => item.mode === mode)
+        return candidates.find((item) => item.isDefault) ?? candidates[0] ?? null
+      }
+
+      const stickerPreset = resolveSelection('sticker')
+      const pkPreset = resolveSelection('pk')
+      const freePreset = resolveSelection('free')
+
+      store.setPresetSelection('sticker', stickerPreset?.id ?? null)
+      store.setPresetSelection('pk', pkPreset?.id ?? null)
+      store.setPresetSelection('free', freePreset?.id ?? null)
+
+      const modeTab = store.activeTab === 'sticker' || store.activeTab === 'pk' || store.activeTab === 'free'
+        ? store.activeTab
+        : null
+      if (modeTab) {
+        store.selectPresetForMode(modeTab, resolveSelection(modeTab))
+      } else {
+        const defaultResponse = await getDefaultPreset()
+        if (defaultResponse?.success && defaultResponse.data) {
+          store.setCurrentPreset(mapApiPreset(defaultResponse.data))
+        } else {
+          store.setCurrentPreset(stickerPreset ?? pkPreset ?? freePreset ?? presets[0] ?? null)
+        }
+      }
+    } else {
+      store.setPresets([])
+      store.setCurrentPreset(null)
+    }
+  } catch (err) {
+    console.error('Failed to load presets/anchors', err)
+    toast({
+      title: t('error'),
+      description: t('networkError'),
+      variant: 'destructive',
+    })
+  }
+}
+
+watch(
+  () => [store.user?.accessToken, isSubscriptionActive.value],
+  () => {
+    loadPresetData()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => store.activeTab,
+  (tab) => {
+    if (tab === 'sticker' || tab === 'pk' || tab === 'free') {
+      store.applyPresetSelection(tab)
+    }
+  }
+)
 
 const handleLogout = async () => {
   await window.electronAPI.monitor.close()

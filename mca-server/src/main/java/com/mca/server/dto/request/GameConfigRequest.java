@@ -1,10 +1,10 @@
 package com.mca.server.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
@@ -15,11 +15,11 @@ import java.util.List;
 @Schema(name = "GameConfigRequest", description = "玩法配置请求")
 public class GameConfigRequest {
 
-    @Schema(description = "贴纸舞玩法配置")
-    private StickerDanceConfig stickerDance;
+    @Schema(description = "贴纸模式配置")
+    private StickerModeConfig sticker;
 
-    @Schema(description = "PK玩法配置")
-    private PKConfig pk;
+    @Schema(description = "PK模式配置")
+    private PKModeConfig pk;
 
     @Schema(description = "自由模式配置")
     private FreeModeConfig free;
@@ -28,74 +28,95 @@ public class GameConfigRequest {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "StickerDanceConfig", description = "贴纸舞玩法配置")
-    public static class StickerDanceConfig {
+    @Schema(name = "StickerModeConfig", description = "贴纸模式配置")
+    public static class StickerModeConfig {
 
-        @Schema(description = "贴纸列表")
-        private List<StickerConfig> stickers;
+        @Schema(description = "模式类型", example = "normal")
+        private String type;
 
-        @Schema(description = "切换模式", example = "SEQUENTIAL")
-        private RotationMode rotationMode;
+        @Schema(description = "倒计时开关")
+        private Boolean countdownEnabled;
 
-        @Schema(description = "切换间隔(秒)", example = "30")
-        private Integer switchInterval;
+        @Schema(description = "倒计时秒数", example = "60")
+        private Integer countdownDuration;
 
-        @Schema(description = "收到礼物自动切换", example = "true")
-        private Boolean autoSwitchOnGift;
+        @Schema(description = "衰减开关")
+        private Boolean decayEnabled;
 
-        public enum RotationMode {
-            SEQUENTIAL,
-            RANDOM
-        }
+        @Schema(description = "衰减秒数", example = "30")
+        private Integer decayDuration;
+
+        @Schema(description = "自动翻页开关")
+        private Boolean autoFlipEnabled;
+
+        @Schema(description = "翻页间隔", example = "10")
+        private Integer flipInterval;
+
+        @Schema(description = "最大页数", example = "2")
+        private Integer maxPages;
+
+        @Schema(description = "玩法礼物")
+        private List<GameplayGift> gameplayGifts;
     }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "StickerConfig", description = "贴纸配置")
-    public static class StickerConfig {
+    @Schema(name = "GameplayGift", description = "玩法礼物")
+    public static class GameplayGift {
 
-        @Schema(description = "贴纸ID", example = "sticker_01")
-        private String id;
+        @Schema(description = "礼物ID", example = "gift_1001")
+        private String giftId;
 
-        @Schema(description = "贴纸名称", example = "星星贴纸")
-        private String name;
-
-        @Schema(description = "位置标识", example = "top-right")
-        private String position;
-
-        @Schema(description = "图片URL", example = "https://example.com/sticker.png")
-        private String imageUrl;
+        @Schema(description = "特效", example = "bounce")
+        private String effect;
     }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(name = "PKConfig", description = "PK玩法配置")
-    public static class PKConfig {
+    @Schema(name = "PKModeConfig", description = "PK模式配置")
+    public static class PKModeConfig {
 
-        @Schema(description = "PK格式", example = "3v3")
-        private String format;
+        @Schema(description = "优势规则", example = "defender")
+        private String advantage;
 
-        @Schema(description = "总轮数", example = "3")
-        private Integer roundCount;
+        @Schema(description = "计分方式", example = "individual")
+        private String scoringMethod;
 
-        @Schema(description = "每轮时长(秒)", example = "180")
-        private Integer roundDuration;
+        @Schema(description = "倒计时开关")
+        private Boolean countdownEnabled;
 
-        @Schema(description = "淘汰阈值", example = "100")
-        private Integer eliminationThreshold;
+        @Schema(description = "倒计时秒数", example = "180")
+        private Integer countdownDuration;
 
-        @Schema(description = "平局处理规则", example = "LAST_GIFT")
-        private TieBreakerMode tieBreaker;
+        @Schema(description = "单礼物绑定开关")
+        private Boolean singleGiftBindEnabled;
 
-        public enum TieBreakerMode {
-            LAST_GIFT,
-            RANDOM,
-            BOTH_WIN
-        }
+        @Schema(description = "冻结特效开关")
+        private Boolean freezeEffectEnabled;
+
+        @Schema(description = "冻结阈值")
+        private FreezeThresholds freezeThresholds;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(name = "FreezeThresholds", description = "冻结阈值")
+    public static class FreezeThresholds {
+
+        @Schema(description = "低档阈值", example = "20")
+        private Integer low;
+
+        @Schema(description = "中档阈值", example = "40")
+        private Integer medium;
+
+        @Schema(description = "高档阈值", example = "60")
+        private Integer high;
     }
 
     @Data
@@ -105,19 +126,16 @@ public class GameConfigRequest {
     @Schema(name = "FreeModeConfig", description = "自由模式配置")
     public static class FreeModeConfig {
 
-        @Schema(description = "展示模式", example = "RANKING")
-        private DisplayMode displayMode;
+        @Schema(description = "回合时长(秒)", example = "300")
+        private Integer roundDuration;
 
-        @Schema(description = "是否显示礼物动画", example = "true")
-        private Boolean showGiftAnimation;
+        @Schema(description = "目标积分", example = "10000")
+        private Integer targetScore;
 
-        @Schema(description = "是否允许游客礼物", example = "false")
-        private Boolean allowGuestGifts;
+        @Schema(description = "是否显示回合数")
+        private Boolean showRoundNumber;
 
-        public enum DisplayMode {
-            RANKING,
-            TIMELINE,
-            NONE
-        }
+        @Schema(description = "展示区间", example = "[1,10]")
+        private List<Integer> displayRange;
     }
 }

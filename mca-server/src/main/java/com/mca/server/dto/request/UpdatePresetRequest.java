@@ -22,9 +22,6 @@ public class UpdatePresetRequest {
     @Schema(description = "玩法模式", example = "PK")
     private Preset.GameMode gameMode;
 
-    @Schema(description = "主播列表")
-    private List<AnchorRequest> anchors;
-
     @Schema(description = "目标礼物列表")
     private List<TargetGiftRequest> targetGifts;
 

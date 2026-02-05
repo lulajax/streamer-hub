@@ -4,6 +4,7 @@ import com.mca.server.dto.ApiResponse;
 import com.mca.server.dto.PresetDTO;
 import com.mca.server.dto.request.*;
 import com.mca.server.service.PresetService;
+import com.mca.server.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,7 +40,8 @@ public class PresetController {
             @RequestHeader("X-Device-Id") String deviceId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "创建预设请求", required = true)
             @RequestBody @Valid CreatePresetRequest request) {
-        PresetDTO preset = presetService.createPreset(deviceId, request);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.createPreset(userId, deviceId, request);
         return ResponseEntity.ok(ApiResponse.success("创建成功", preset));
     }
 
@@ -55,7 +57,8 @@ public class PresetController {
     public ResponseEntity<ApiResponse<List<PresetDTO>>> getDevicePresets(
             @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
             @RequestHeader("X-Device-Id") String deviceId) {
-        List<PresetDTO> presets = presetService.getPresetsByDevice(deviceId);
+        String userId = SecurityUtil.getCurrentUserId();
+        List<PresetDTO> presets = presetService.getPresetsByDevice(userId, deviceId);
         return ResponseEntity.ok(ApiResponse.success(presets));
     }
 
@@ -71,7 +74,8 @@ public class PresetController {
     @GetMapping("/{presetId}")
     public ResponseEntity<ApiResponse<PresetDTO>> getPreset(
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId) {
-        PresetDTO preset = presetService.getPreset(presetId);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.getPreset(userId, presetId);
         return ResponseEntity.ok(ApiResponse.success(preset));
     }
 
@@ -89,7 +93,8 @@ public class PresetController {
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "更新预设请求", required = true)
             @RequestBody UpdatePresetRequest request) {
-        PresetDTO preset = presetService.updatePreset(presetId, request);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.updatePreset(userId, presetId, request);
         return ResponseEntity.ok(ApiResponse.success("更新成功", preset));
     }
 
@@ -105,7 +110,8 @@ public class PresetController {
     @DeleteMapping("/{presetId}")
     public ResponseEntity<ApiResponse<Void>> deletePreset(
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId) {
-        presetService.deletePreset(presetId);
+        String userId = SecurityUtil.getCurrentUserId();
+        presetService.deletePreset(userId, presetId);
         return ResponseEntity.ok(ApiResponse.success("删除成功", null));
     }
 
@@ -123,7 +129,8 @@ public class PresetController {
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "游戏玩法配置", required = true)
             @RequestBody GameConfigRequest request) {
-        PresetDTO preset = presetService.updateGameConfig(presetId, request);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.updateGameConfig(userId, presetId, request);
         return ResponseEntity.ok(ApiResponse.success("玩法配置已更新", preset));
     }
 
@@ -141,8 +148,9 @@ public class PresetController {
     public ResponseEntity<ApiResponse<PresetDTO>> addAnchor(
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "主播信息", required = true)
-            @RequestBody @Valid AnchorRequest request) {
-        PresetDTO preset = presetService.addAnchor(presetId, request);
+            @RequestBody @Valid PresetAnchorRequest request) {
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.addAnchor(userId, presetId, request);
         return ResponseEntity.ok(ApiResponse.success("主播已添加", preset));
     }
 
@@ -159,7 +167,8 @@ public class PresetController {
     public ResponseEntity<ApiResponse<PresetDTO>> removeAnchor(
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @Parameter(description = "主播ID", required = true, example = "anchor_xyz789") @PathVariable String anchorId) {
-        PresetDTO preset = presetService.removeAnchor(presetId, anchorId);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.removeAnchor(userId, presetId, anchorId);
         return ResponseEntity.ok(ApiResponse.success("主播已移除", preset));
     }
 
@@ -178,7 +187,8 @@ public class PresetController {
             @Parameter(description = "主播ID", required = true, example = "anchor_xyz789") @PathVariable String anchorId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "专属礼物ID列表", required = true)
             @RequestBody List<String> giftIds) {
-        PresetDTO preset = presetService.updateAnchorGifts(presetId, anchorId, giftIds);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.updateAnchorGifts(userId, presetId, anchorId, giftIds);
         return ResponseEntity.ok(ApiResponse.success("专属礼物已更新", preset));
     }
 
@@ -196,7 +206,8 @@ public class PresetController {
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "目标礼物配置", required = true)
             @RequestBody TargetGiftsRequest request) {
-        PresetDTO preset = presetService.updateTargetGifts(presetId, request);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.updateTargetGifts(userId, presetId, request);
         return ResponseEntity.ok(ApiResponse.success("目标礼物已更新", preset));
     }
 
@@ -214,7 +225,8 @@ public class PresetController {
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "挂件显示设置", required = true)
             @RequestBody WidgetSettingsRequest request) {
-        PresetDTO preset = presetService.updateWidgetSettings(presetId, request);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.updateWidgetSettings(userId, presetId, request);
         return ResponseEntity.ok(ApiResponse.success("挂件样式已更新", preset));
     }
 
@@ -230,7 +242,8 @@ public class PresetController {
     @PostMapping("/{presetId}/widget-token/refresh")
     public ResponseEntity<ApiResponse<String>> refreshWidgetToken(
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId) {
-        String newToken = presetService.refreshWidgetToken(presetId);
+        String userId = SecurityUtil.getCurrentUserId();
+        String newToken = presetService.refreshWidgetToken(userId, presetId);
         return ResponseEntity.ok(ApiResponse.success("挂件链接已更新", newToken));
     }
 
@@ -246,7 +259,8 @@ public class PresetController {
     @GetMapping("/{presetId}/preview-url")
     public ResponseEntity<ApiResponse<String>> getPreviewUrl(
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId) {
-        String previewUrl = presetService.generatePreviewUrl(presetId);
+        String userId = SecurityUtil.getCurrentUserId();
+        String previewUrl = presetService.generatePreviewUrl(userId, presetId);
         return ResponseEntity.ok(ApiResponse.success(previewUrl));
     }
 
@@ -264,7 +278,8 @@ public class PresetController {
             @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
             @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
             @RequestHeader("X-Device-Id") String deviceId) {
-        PresetDTO preset = presetService.setDefault(presetId, deviceId);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.setDefault(userId, presetId, deviceId);
         return ResponseEntity.ok(ApiResponse.success("已设为默认配置", preset));
     }
 
@@ -281,7 +296,8 @@ public class PresetController {
     public ResponseEntity<ApiResponse<PresetDTO>> getDefaultPreset(
             @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
             @RequestHeader("X-Device-Id") String deviceId) {
-        PresetDTO preset = presetService.getDefaultPreset(deviceId);
+        String userId = SecurityUtil.getCurrentUserId();
+        PresetDTO preset = presetService.getDefaultPreset(userId, deviceId);
         return ResponseEntity.ok(ApiResponse.success(preset));
     }
 }

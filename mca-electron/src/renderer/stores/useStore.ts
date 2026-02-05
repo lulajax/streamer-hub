@@ -11,6 +11,7 @@ import type {
   LeaderboardEntry,
   WidgetLink,
   UserDTO,
+  UserAnchor,
 } from '@/types'
 
 interface AppState {
@@ -20,9 +21,15 @@ interface AppState {
   currentRoom: Room | null
   recentRooms: Room[]
   anchors: Anchor[]
+  userAnchors: UserAnchor[]
   users: User[]
   giftRecords: GiftRecord[]
   presets: Preset[]
+  presetSelections: {
+    sticker: string | null
+    pk: string | null
+    free: string | null
+  }
   currentPreset: Preset | null
   currentSession: Session | null
   leaderboard: LeaderboardEntry[]
@@ -49,9 +56,15 @@ export const useStore = defineStore('app', {
     currentRoom: null,
     recentRooms: [],
     anchors: [],
+    userAnchors: [],
     users: [],
     giftRecords: [],
     presets: [],
+    presetSelections: {
+      sticker: null,
+      pk: null,
+      free: null,
+    },
     currentPreset: null,
     currentSession: null,
     leaderboard: [],
@@ -73,6 +86,16 @@ export const useStore = defineStore('app', {
       this.user = null
       this.currentRoom = null
       this.currentSession = null
+      this.anchors = []
+      this.userAnchors = []
+      this.presets = []
+      this.currentPreset = null
+      this.presetSelections = {
+        sticker: null,
+        pk: null,
+        free: null,
+      }
+      this.activeTab = 'dashboard'
     },
     setActivation(activation: ActivationInfo) {
       this.activation = activation
@@ -104,6 +127,20 @@ export const useStore = defineStore('app', {
     setUsers(users: User[]) {
       this.users = users
     },
+    setUserAnchors(anchors: UserAnchor[]) {
+      this.userAnchors = anchors
+    },
+    addUserAnchor(anchor: UserAnchor) {
+      this.userAnchors = [...this.userAnchors, anchor]
+    },
+    updateUserAnchor(id: string, updates: Partial<UserAnchor>) {
+      this.userAnchors = this.userAnchors.map((anchor) =>
+        anchor.id === id ? { ...anchor, ...updates } : anchor
+      )
+    },
+    removeUserAnchor(id: string) {
+      this.userAnchors = this.userAnchors.filter((anchor) => anchor.id !== id)
+    },
     updateUser(id: string, updates: Partial<User>) {
       this.users = this.users.map((user) => (user.id === id ? { ...user, ...updates } : user))
     },
@@ -121,8 +158,30 @@ export const useStore = defineStore('app', {
     setPresets(presets: Preset[]) {
       this.presets = presets
     },
+    setPresetSelection(mode: 'sticker' | 'pk' | 'free', presetId: string | null) {
+      this.presetSelections = {
+        ...this.presetSelections,
+        [mode]: presetId,
+      }
+    },
+    selectPresetForMode(mode: 'sticker' | 'pk' | 'free', preset: Preset | null) {
+      this.setPresetSelection(mode, preset?.id ?? null)
+      this.setCurrentPreset(preset)
+    },
+    applyPresetSelection(mode: 'sticker' | 'pk' | 'free') {
+      const presetId = this.presetSelections[mode]
+      const preset =
+        (presetId ? this.presets.find((item) => item.id === presetId) : null) ??
+        this.presets.find((item) => item.mode === mode) ??
+        null
+      this.setCurrentPreset(preset)
+      if (preset) {
+        this.setPresetSelection(mode, preset.id)
+      }
+    },
     setCurrentPreset(preset: Preset | null) {
       this.currentPreset = preset
+      this.anchors = preset?.anchors ?? []
     },
     addPreset(preset: Preset) {
       this.presets = [...this.presets, preset]

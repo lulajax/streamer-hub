@@ -35,6 +35,30 @@
       </div>
     </div>
 
+    <Card class="bg-slate-900 border-slate-800">
+      <CardContent class="p-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p class="text-slate-400 text-sm">{{ t('presetForMode') }}</p>
+          <div v-if="modePresets.length > 0" class="mt-2">
+            <Select v-model="selectedPresetId">
+              <SelectTrigger class="w-64 bg-slate-800 border-slate-700 text-white">
+                <SelectValue :placeholder="t('selectPreset')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="preset in modePresets" :key="preset.id" :value="preset.id">
+                  {{ preset.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p v-else class="text-slate-500 mt-2">{{ t('noPresetsForMode') }}</p>
+        </div>
+        <Button variant="outline" class="border-slate-700 text-slate-300" @click="goToPresets">
+          {{ t('managePresets') }}
+        </Button>
+      </CardContent>
+    </Card>
+
     <!-- Current Round Info -->
     <Card class="bg-slate-900 border-slate-800">
       <CardContent class="p-6">
@@ -104,6 +128,7 @@
         <TabsTrigger value="anchors">Anchor Queue</TabsTrigger>
         <TabsTrigger value="history">Round History</TabsTrigger>
         <TabsTrigger value="config">Configuration</TabsTrigger>
+        <TabsTrigger value="target-gifts">{{ t('targetGifts') }}</TabsTrigger>
         <TabsTrigger value="preview">Preview</TabsTrigger>
       </TabsList>
 
@@ -123,6 +148,28 @@
             </Button>
           </CardHeader>
           <CardContent>
+            <div class="mb-4 space-y-2">
+              <p class="text-sm text-slate-300">{{ t('linkedAnchors') }}</p>
+              <div class="grid grid-cols-2 gap-2">
+                <div
+                  v-for="anchor in store.userAnchors"
+                  :key="anchor.id"
+                  class="flex items-center justify-between p-2 rounded-lg bg-slate-800/60"
+                >
+                  <div>
+                    <p class="text-white text-sm font-medium">{{ anchor.name }}</p>
+                    <p class="text-slate-500 text-xs">{{ anchor.tiktokId || '-' }}</p>
+                  </div>
+                  <Switch
+                    :modelValue="isAnchorLinked(anchor.id)"
+                    @update:modelValue="(value) => handleToggleAnchor(anchor.id, value)"
+                  />
+                </div>
+              </div>
+              <div v-if="store.userAnchors.length === 0" class="text-slate-500 text-center py-4">
+                {{ t('noAnchors') }}
+              </div>
+            </div>
             <ScrollArea class="h-96">
               <div class="space-y-2">
                 <div
@@ -300,6 +347,77 @@
                 />
               </div>
             </div>
+
+            <Button class="bg-blue-600 hover:bg-blue-700 w-fit" @click="handleSaveConfig">
+              {{ t('savePresetConfig') }}
+            </Button>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="target-gifts" class="space-y-4">
+        <Card class="bg-slate-900 border-slate-800">
+          <CardHeader>
+            <CardTitle class="text-white">{{ t('targetGifts') }}</CardTitle>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <div class="space-y-3">
+              <div
+                v-for="(gift, index) in targetGifts.targetGifts"
+                :key="index"
+                class="grid grid-cols-6 gap-3 items-center bg-slate-800/60 p-3 rounded-lg"
+              >
+                <Input v-model="gift.giftId" class="bg-slate-900 border-slate-700 text-white" :placeholder="t('giftId')" />
+                <Input v-model="gift.giftName" class="bg-slate-900 border-slate-700 text-white" :placeholder="t('giftName')" />
+                <Input v-model.number="gift.diamondCost" type="number" class="bg-slate-900 border-slate-700 text-white" :placeholder="t('diamondCost')" />
+                <Input v-model.number="gift.points" type="number" class="bg-slate-900 border-slate-700 text-white" :placeholder="t('points')" />
+                <div class="flex items-center gap-2">
+                  <Switch v-model="gift.isTarget" />
+                  <span class="text-xs text-slate-400">{{ t('isTarget') }}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  class="border-red-500/40 text-red-400 hover:text-red-300"
+                  @click="removeTargetGift(index)"
+                >
+                  {{ t('remove') }}
+                </Button>
+              </div>
+
+              <div v-if="targetGifts.targetGifts.length === 0" class="text-slate-500 text-center py-6">
+                {{ t('noTargetGifts') }}
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <Button variant="outline" class="border-slate-700 text-slate-300" @click="addTargetGift">
+                {{ t('addTargetGift') }}
+              </Button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm font-medium text-slate-300 mb-2 block">{{ t('scoringMode') }}</label>
+                <Select v-model="targetGifts.scoringRules.mode">
+                  <SelectTrigger class="bg-slate-800 border-slate-700 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DIAMOND">DIAMOND</SelectItem>
+                    <SelectItem value="COUNT">COUNT</SelectItem>
+                    <SelectItem value="POINTS">POINTS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-300 mb-2 block">{{ t('multiplier') }}</label>
+                <Input v-model.number="targetGifts.scoringRules.multiplier" type="number" class="bg-slate-900 border-slate-700 text-white" />
+              </div>
+            </div>
+
+            <Button class="bg-blue-600 hover:bg-blue-700" @click="handleSaveTargetGifts">
+              {{ t('saveTargetGifts') }}
+            </Button>
           </CardContent>
         </Card>
       </TabsContent>
@@ -310,11 +428,39 @@
             <CardTitle class="text-white">Widget Preview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div class="aspect-video bg-slate-800 rounded-lg flex items-center justify-center">
-              <div class="text-center text-slate-500">
-                <Users class="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p>Free mode widget preview will appear here</p>
-                <p class="text-sm">Configure settings and click Start to see preview</p>
+            <div class="space-y-4">
+              <div class="flex items-center gap-2">
+                <Input
+                  :modelValue="widgetPreviewUrl || ''"
+                  readonly
+                  class="flex-1 bg-slate-900 border-slate-700 text-slate-300 text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  class="border-slate-700"
+                  :disabled="!widgetPreviewUrl"
+                  @click="copyWidgetUrl"
+                >
+                  <Copy class="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  class="border-slate-700"
+                  :disabled="!widgetPreviewUrl"
+                  @click="openWidgetPreview"
+                >
+                  <ExternalLink class="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div class="aspect-video bg-slate-800 rounded-lg flex items-center justify-center">
+                <div class="text-center text-slate-500">
+                  <Users class="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>{{ widgetPreviewUrl ? t('widgetPreviewHint') : t('noPresetSelected') }}</p>
+                  <p class="text-sm">{{ t('widgetPreviewTip') }}</p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -325,11 +471,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from '@/stores/useStore'
 import { useToast } from '@/hooks/use-toast'
 import { connectTikTokLiveForRoom } from '@/lib/tiktokLive'
+import { getServerBaseUrl } from '@/lib/api'
+import { mapApiPreset } from '@/lib/mappers'
+import { attachAnchorToPreset, detachAnchorFromPreset, updateGameConfig, updateTargetGifts } from '@/lib/presetsApi'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import Card from '@/components/ui/Card.vue'
@@ -346,7 +495,12 @@ import Avatar from '@/components/ui/Avatar.vue'
 import AvatarImage from '@/components/ui/AvatarImage.vue'
 import AvatarFallback from '@/components/ui/AvatarFallback.vue'
 import Switch from '@/components/ui/Switch.vue'
-import type { FreeModeConfig } from '@/types'
+import Select from '@/components/ui/Select.vue'
+import SelectContent from '@/components/ui/SelectContent.vue'
+import SelectItem from '@/components/ui/SelectItem.vue'
+import SelectTrigger from '@/components/ui/SelectTrigger.vue'
+import SelectValue from '@/components/ui/SelectValue.vue'
+import type { FreeModeConfig, TargetGiftsConfig, TargetGift, Preset } from '@/types'
 import {
   Users,
   Play,
@@ -359,18 +513,49 @@ import {
   EyeOff,
   ChevronRight,
   Trophy,
+  Copy,
+  ExternalLink,
 } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const { toast } = useToast()
 const store = useStore()
 
-const config = ref<FreeModeConfig>({
+const defaultConfig: FreeModeConfig = {
   roundDuration: 300,
   targetScore: 10000,
   showRoundNumber: true,
   displayRange: [1, 10],
+}
+
+const defaultTargetGifts: TargetGiftsConfig = {
+  targetGifts: [],
+  scoringRules: {
+    mode: 'POINTS',
+    multiplier: 1,
+  },
+}
+
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
+const modePresets = computed(() => store.presets.filter((preset) => preset.mode === 'free'))
+
+const selectedPresetId = computed({
+  get: () => store.presetSelections.free ?? '',
+  set: (value: string) => {
+    const preset = store.presets.find((item) => item.id === value) ?? null
+    store.selectPresetForMode('free', preset)
+  },
 })
+
+const selectedPreset = computed<Preset | null>(() => {
+  if (store.currentPreset?.mode === 'free') return store.currentPreset
+  const presetId = store.presetSelections.free
+  return presetId ? store.presets.find((item) => item.id === presetId) ?? null : null
+})
+
+const config = ref<FreeModeConfig>(clone(selectedPreset.value?.config ?? defaultConfig))
+const targetGifts = ref<TargetGiftsConfig>(clone(selectedPreset.value?.targetGifts ?? defaultTargetGifts))
 
 const isRunning = ref(false)
 const currentRound = ref(1)
@@ -382,6 +567,32 @@ const isTikTokConnecting = ref(false)
 const roundHistory = ref<
   { round: number; anchorId: string; score: number; targetReached: boolean }[]
 >([])
+
+const widgetPreviewUrl = computed(() =>
+  selectedPreset.value?.widgetToken
+    ? `${getServerBaseUrl()}/widget/${selectedPreset.value.widgetToken}?mode=preset`
+    : null
+)
+
+watch(
+  () => selectedPreset.value,
+  (preset) => {
+    const nextConfig = clone(preset?.config ?? defaultConfig) as FreeModeConfig
+    config.value = {
+      ...defaultConfig,
+      ...nextConfig,
+      displayRange: nextConfig.displayRange ?? defaultConfig.displayRange,
+    }
+    targetGifts.value = clone(preset?.targetGifts ?? defaultTargetGifts)
+    if (!targetGifts.value.scoringRules) {
+      targetGifts.value.scoringRules = { mode: 'POINTS', multiplier: 1 }
+    }
+    currentRound.value = 1
+    currentAnchorIndex.value = 0
+    roundHistory.value = []
+  },
+  { immediate: true }
+)
 
 const currentAnchor = computed(() => store.anchors[currentAnchorIndex.value])
 
@@ -447,6 +658,7 @@ const handlePause = () => {
 }
 
 const handleEndRound = () => {
+  if (store.anchors.length === 0) return
   const anchor = store.anchors[currentAnchorIndex.value]
   if (anchor) {
     roundHistory.value.push({
@@ -475,5 +687,105 @@ const handleReset = () => {
   toast({
     title: 'Free Mode Reset',
   })
+}
+
+const handleSaveConfig = async () => {
+  if (!selectedPreset.value) return
+  const response = await updateGameConfig(selectedPreset.value.id, {
+    free: config.value,
+  })
+  if (response?.success && response.data) {
+    const updated = mapApiPreset(response.data)
+    store.updatePreset(updated.id, updated)
+    store.selectPresetForMode('free', updated)
+    toast({ title: t('success'), description: t('presetUpdated') })
+  } else {
+    toast({
+      title: t('error'),
+      description: response?.error || t('networkError'),
+      variant: 'destructive',
+    })
+  }
+}
+
+const addTargetGift = () => {
+  const next: TargetGift = { giftId: '', giftName: '', diamondCost: 0, points: 0, isTarget: true }
+  targetGifts.value.targetGifts.push(next)
+}
+
+const removeTargetGift = (index: number) => {
+  targetGifts.value.targetGifts.splice(index, 1)
+}
+
+const handleSaveTargetGifts = async () => {
+  if (!selectedPreset.value) return
+  const response = await updateTargetGifts(selectedPreset.value.id, {
+    targetGifts: targetGifts.value.targetGifts,
+    scoringRules: targetGifts.value.scoringRules,
+  })
+  if (response?.success && response.data) {
+    const updated = mapApiPreset(response.data)
+    store.updatePreset(updated.id, updated)
+    store.selectPresetForMode('free', updated)
+    toast({ title: t('success'), description: t('presetUpdated') })
+  } else {
+    toast({
+      title: t('error'),
+      description: response?.error || t('networkError'),
+      variant: 'destructive',
+    })
+  }
+}
+
+const isAnchorLinked = (anchorId: string) =>
+  selectedPreset.value?.anchors.some((anchor) => anchor.id === anchorId) ?? false
+
+const handleToggleAnchor = async (anchorId: string, value: boolean) => {
+  if (!selectedPreset.value) return
+  if (value) {
+    const response = await attachAnchorToPreset(selectedPreset.value.id, {
+      anchorId,
+      displayOrder: selectedPreset.value.anchors.length,
+    })
+    if (response?.success && response.data) {
+      const updated = mapApiPreset(response.data)
+      store.updatePreset(updated.id, updated)
+      store.selectPresetForMode('free', updated)
+    } else {
+      toast({
+        title: t('error'),
+        description: response?.error || t('networkError'),
+        variant: 'destructive',
+      })
+    }
+  } else {
+    const response = await detachAnchorFromPreset(selectedPreset.value.id, anchorId)
+    if (response?.success && response.data) {
+      const updated = mapApiPreset(response.data)
+      store.updatePreset(updated.id, updated)
+      store.selectPresetForMode('free', updated)
+    } else {
+      toast({
+        title: t('error'),
+        description: response?.error || t('networkError'),
+        variant: 'destructive',
+      })
+    }
+  }
+}
+
+const copyWidgetUrl = () => {
+  if (!widgetPreviewUrl.value) return
+  navigator.clipboard.writeText(widgetPreviewUrl.value)
+  toast({ title: t('success'), description: t('widgetLinkCopied') })
+}
+
+const openWidgetPreview = () => {
+  if (!widgetPreviewUrl.value || !selectedPreset.value) return
+  window.electronAPI.widget.open(widgetPreviewUrl.value, selectedPreset.value.name)
+}
+
+const goToPresets = () => {
+  store.setActiveTab('presets')
 }
 </script>
