@@ -3,6 +3,7 @@ package com.mca.server.controller;
 import com.mca.server.dto.ApiResponse;
 import com.mca.server.dto.SessionDTO;
 import com.mca.server.service.SessionService;
+import com.mca.server.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -36,7 +37,8 @@ public class SessionController {
     public ResponseEntity<ApiResponse<SessionDTO>> createSession(
             @Parameter(description = "房间ID", required = true, example = "room_abc123") @RequestParam String roomId,
             @Parameter(description = "预设ID", required = true, example = "preset_xyz789") @RequestParam String presetId) {
-        SessionDTO session = sessionService.createSession(roomId, presetId);
+        String userId = SecurityUtil.getCurrentUserId();
+        SessionDTO session = sessionService.createSession(roomId, presetId, userId);
         return ResponseEntity.ok(ApiResponse.success("Session created", session));
     }
 
@@ -168,7 +170,8 @@ public class SessionController {
             @Parameter(description = "房间ID", required = true, example = "room_abc123") @RequestParam String roomId,
             @Parameter(description = "设备ID", required = true, example = "device_abc123_xyz")
             @RequestHeader("X-Device-Id") String deviceId) {
-        SessionDTO session = sessionService.quickStartWithDefault(roomId, deviceId);
+        String userId = SecurityUtil.getCurrentUserId();
+        SessionDTO session = sessionService.quickStartWithDefault(roomId, deviceId, userId);
         return ResponseEntity.ok(ApiResponse.success("Quick started", session));
     }
 

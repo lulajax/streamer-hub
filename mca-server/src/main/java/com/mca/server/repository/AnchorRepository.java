@@ -9,14 +9,10 @@ import java.util.Optional;
 
 @Repository
 public interface AnchorRepository extends JpaRepository<Anchor, String> {
-    
-    List<Anchor> findByPresetId(String presetId);
-    
-    List<Anchor> findByPresetIdAndIsActiveTrue(String presetId);
-    
-    List<Anchor> findByPresetIdOrderByDisplayOrderAsc(String presetId);
-    
-    Optional<Anchor> findByTiktokId(String tiktokId);
-    
-    long countByPresetId(String presetId);
+
+    List<Anchor> findByUserId(String userId);
+
+    Optional<Anchor> findByUserIdAndTiktokId(String userId, String tiktokId);
+
+    boolean existsByUserIdAndId(String userId, String id);
 }

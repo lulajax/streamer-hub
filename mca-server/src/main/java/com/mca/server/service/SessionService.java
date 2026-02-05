@@ -28,12 +28,15 @@ public class SessionService {
     private final WidgetUpdatePublisher widgetUpdatePublisher;
     
     @Transactional
-    public SessionDTO createSession(String roomId, String presetId) {
+    public SessionDTO createSession(String roomId, String presetId, String userId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
 
         Preset preset = presetRepository.findById(presetId)
                 .orElseThrow(() -> new RuntimeException("Preset not found"));
+        if (userId != null && !userId.equals(preset.getUserId())) {
+            throw new RuntimeException("No permission to use this preset");
+        }
 
         List<Session> activeSessions = sessionRepository.findActiveSessionsByRoomId(roomId);
         if (!activeSessions.isEmpty()) {
@@ -61,13 +64,13 @@ public class SessionService {
     }
 
     @Transactional
-    public SessionDTO quickStartWithDefault(String roomId, String deviceId) {
-        Preset defaultPreset = presetRepository.findByDeviceIdAndIsDefaultTrue(deviceId)
+    public SessionDTO quickStartWithDefault(String roomId, String deviceId, String userId) {
+        Preset defaultPreset = presetRepository.findByDeviceIdAndUserIdAndIsDefaultTrue(deviceId, userId)
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No default preset found for device"));
 
-        return createSession(roomId, defaultPreset.getId());
+        return createSession(roomId, defaultPreset.getId(), userId);
     }
 
     @Transactional(readOnly = true)

@@ -1,6 +1,7 @@
 package com.mca.server.dto;
 
 import com.mca.server.entity.Anchor;
+import com.mca.server.entity.PresetAnchor;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,18 +43,33 @@ public class AnchorDTO {
 
     @Schema(description = "展示顺序", example = "1")
     private Integer displayOrder;
-    
+
     public static AnchorDTO fromEntity(Anchor entity) {
         return AnchorDTO.builder()
                 .id(entity.getId())
                 .tiktokId(entity.getTiktokId())
                 .name(entity.getName())
                 .avatarUrl(entity.getAvatarUrl())
-                .exclusiveGifts(entity.getExclusiveGifts())
-                .totalScore(entity.getTotalScore())
-                .isEliminated(entity.getIsEliminated())
-                .isActive(entity.getIsActive())
-                .displayOrder(entity.getDisplayOrder())
+                .exclusiveGifts(List.of())
+                .totalScore(0L)
+                .isEliminated(false)
+                .isActive(true)
+                .displayOrder(null)
+                .build();
+    }
+
+    public static AnchorDTO fromPresetAnchor(PresetAnchor presetAnchor) {
+        Anchor anchor = presetAnchor.getAnchor();
+        return AnchorDTO.builder()
+                .id(anchor.getId())
+                .tiktokId(anchor.getTiktokId())
+                .name(anchor.getName())
+                .avatarUrl(anchor.getAvatarUrl())
+                .exclusiveGifts(presetAnchor.getExclusiveGifts())
+                .totalScore(presetAnchor.getTotalScore())
+                .isEliminated(presetAnchor.getIsEliminated())
+                .isActive(presetAnchor.getIsActive())
+                .displayOrder(presetAnchor.getDisplayOrder())
                 .build();
     }
 }

@@ -24,6 +24,25 @@ export interface GiftRecord {
   bindType: 'auto' | 'manual' | 'single' | 'none'
 }
 
+export interface TargetGift {
+  giftId?: string
+  giftName?: string
+  giftIcon?: string
+  diamondCost?: number
+  points?: number
+  isTarget?: boolean
+}
+
+export interface ScoringRules {
+  mode: 'DIAMOND' | 'COUNT' | 'POINTS'
+  multiplier?: number
+}
+
+export interface TargetGiftsConfig {
+  targetGifts: TargetGift[]
+  scoringRules?: ScoringRules
+}
+
 // Anchor types
 export interface Anchor {
   id: string
@@ -35,6 +54,15 @@ export interface Anchor {
   isEliminated: boolean
   isActive: boolean
   order: number
+}
+
+export interface UserAnchor {
+  id: string
+  tiktokId?: string
+  name: string
+  avatarUrl?: string
+  createdAt?: number
+  updatedAt?: number
 }
 
 // User types
@@ -106,9 +134,12 @@ export interface Preset {
   mode: GameMode
   anchors: Anchor[]
   config: StickerModeConfig | PKModeConfig | FreeModeConfig
+  targetGifts?: TargetGiftsConfig
   widgetSettings: WidgetSettings
+  widgetToken?: string
   createdAt: number
   updatedAt: number
+  isDefault?: boolean
 }
 
 export interface WidgetSettings {
@@ -212,6 +243,43 @@ export interface ApiResponse<T> {
   data?: T
   error?: string
   message?: string
+}
+
+// API DTOs
+export interface ApiAnchorDTO {
+  id: string
+  tiktokId?: string
+  name: string
+  avatarUrl?: string
+  exclusiveGifts?: string[]
+  totalScore?: number
+  isEliminated?: boolean
+  isActive?: boolean
+  displayOrder?: number
+}
+
+export interface ApiUserAnchorDTO {
+  id: string
+  tiktokId?: string
+  name: string
+  avatarUrl?: string
+  createdAt?: number
+  updatedAt?: number
+}
+
+export interface ApiPresetDTO {
+  id: string
+  name: string
+  deviceId: string
+  gameMode: 'STICKER' | 'PK' | 'FREE'
+  anchors?: ApiAnchorDTO[]
+  targetGiftsJson?: string
+  configJson?: string
+  widgetSettingsJson?: string
+  widgetToken?: string
+  isDefault?: boolean
+  createdAt?: number
+  updatedAt?: number
 }
 
 // WebSocket types

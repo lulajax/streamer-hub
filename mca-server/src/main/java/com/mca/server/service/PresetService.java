@@ -6,9 +6,12 @@ import com.mca.server.dto.PresetDTO;
 import com.mca.server.dto.request.*;
 import com.mca.server.entity.Anchor;
 import com.mca.server.entity.Preset;
+import com.mca.server.entity.PresetAnchor;
 import com.mca.server.exception.BusinessException;
 import com.mca.server.repository.AnchorRepository;
+import com.mca.server.repository.PresetAnchorRepository;
 import com.mca.server.repository.PresetRepository;
+import com.mca.server.repository.UserDeviceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,14 +27,18 @@ public class PresetService {
 
     private final PresetRepository presetRepository;
     private final AnchorRepository anchorRepository;
+    private final PresetAnchorRepository presetAnchorRepository;
+    private final UserDeviceRepository userDeviceRepository;
     private final ObjectMapper objectMapper;
     private final WidgetUpdatePublisher widgetUpdatePublisher;
 
     private static final int MAX_PRESETS_PER_DEVICE = 10;
 
     @Transactional
-    public PresetDTO createPreset(String deviceId, CreatePresetRequest request) {
-        long count = presetRepository.countByDeviceId(deviceId);
+    public PresetDTO createPreset(String userId, String deviceId, CreatePresetRequest request) {
+        validateDeviceOwnership(userId, deviceId);
+
+        long count = presetRepository.countByDeviceIdAndUserId(deviceId, userId);
         if (count >= MAX_PRESETS_PER_DEVICE) {
             throw new BusinessException("每个设备最多创建" + MAX_PRESETS_PER_DEVICE + "个配置");
         }
@@ -40,6 +47,7 @@ public class PresetService {
                 .name(request.getName())
                 .gameMode(request.getGameMode())
                 .deviceId(deviceId)
+                .userId(userId)
                 .widgetToken(generateWidgetToken())
                 .isDefault(count == 0)
                 .anchors(new ArrayList<>())
@@ -50,7 +58,7 @@ public class PresetService {
         }
 
         if (request.getGameConfig() != null) {
-            preset.setConfigJson(toJson(request.getGameConfig()));
+            preset.setConfigJson(resolveGameConfigJson(request.getGameMode(), request.getGameConfig()));
         }
 
         if (request.getWidgetSettings() != null) {
@@ -58,20 +66,21 @@ public class PresetService {
         }
 
         if (request.getAnchors() != null && !request.getAnchors().isEmpty()) {
-            List<Anchor> anchors = request.getAnchors().stream()
-                    .map(anchorReq -> Anchor.builder()
-                            .tiktokId(anchorReq.getTiktokId())
-                            .name(anchorReq.getName())
-                            .avatarUrl(anchorReq.getAvatarUrl())
-                            .exclusiveGifts(anchorReq.getExclusiveGifts() != null ? anchorReq.getExclusiveGifts() : new ArrayList<>())
-                            .displayOrder(anchorReq.getDisplayOrder())
-                            .totalScore(0L)
-                            .isEliminated(false)
-                            .isActive(true)
-                            .preset(preset)
-                            .build())
-                    .collect(Collectors.toList());
-            preset.getAnchors().addAll(anchors);
+            Set<String> seenAnchorIds = new HashSet<>();
+            int nextOrder = 0;
+            for (PresetAnchorRequest anchorReq : request.getAnchors()) {
+                if (!seenAnchorIds.add(anchorReq.getAnchorId())) {
+                    throw new BusinessException("主播重复绑定: " + anchorReq.getAnchorId());
+                }
+                Anchor anchor = getAnchorForUser(anchorReq.getAnchorId(), userId);
+                Integer displayOrder = anchorReq.getDisplayOrder();
+                if (displayOrder == null) {
+                    displayOrder = nextOrder++;
+                } else {
+                    nextOrder = Math.max(nextOrder, displayOrder + 1);
+                }
+                preset.getAnchors().add(buildPresetAnchor(preset, anchor, anchorReq, displayOrder));
+            }
         }
 
         Preset saved = presetRepository.save(preset);
@@ -81,10 +90,17 @@ public class PresetService {
     }
 
     @Transactional(readOnly = true)
-    public List<PresetDTO> getPresetsByDevice(String deviceId) {
-        return presetRepository.findByDeviceId(deviceId).stream()
+    public List<PresetDTO> getPresetsByDevice(String userId, String deviceId) {
+        validateDeviceOwnership(userId, deviceId);
+        return presetRepository.findByDeviceIdAndUserId(deviceId, userId).stream()
                 .map(PresetDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PresetDTO getPreset(String userId, String presetId) {
+        Preset preset = getPresetForUser(presetId, userId);
+        return PresetDTO.fromEntity(preset);
     }
 
     @Transactional(readOnly = true)
@@ -102,9 +118,8 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO updatePreset(String presetId, UpdatePresetRequest request) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO updatePreset(String userId, String presetId, UpdatePresetRequest request) {
+        Preset preset = getPresetForUser(presetId, userId);
 
         if (request.getName() != null) {
             preset.setName(request.getName());
@@ -119,7 +134,7 @@ public class PresetService {
         }
 
         if (request.getGameConfig() != null) {
-            preset.setConfigJson(toJson(request.getGameConfig()));
+            preset.setConfigJson(resolveGameConfigJson(preset.getGameMode(), request.getGameConfig()));
         }
 
         if (request.getWidgetSettings() != null) {
@@ -134,20 +149,21 @@ public class PresetService {
     }
 
     @Transactional
-    public void deletePreset(String presetId) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public void deletePreset(String userId, String presetId) {
+        Preset preset = getPresetForUser(presetId, userId);
 
         presetRepository.delete(preset);
         log.info("Preset deleted: {}", presetId);
     }
 
     @Transactional
-    public PresetDTO updateGameConfig(String presetId, GameConfigRequest request) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO updateGameConfig(String userId, String presetId, GameConfigRequest request) {
+        Preset preset = getPresetForUser(presetId, userId);
 
-        preset.setConfigJson(toJson(request));
+        String configJson = resolveGameConfigJson(preset.getGameMode(), request);
+        if (configJson != null) {
+            preset.setConfigJson(configJson);
+        }
         Preset saved = presetRepository.save(preset);
 
         log.info("Game config updated for preset: {}", presetId);
@@ -156,23 +172,22 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO addAnchor(String presetId, AnchorRequest request) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO addAnchor(String userId, String presetId, PresetAnchorRequest request) {
+        Preset preset = getPresetForUser(presetId, userId);
+        Anchor anchor = getAnchorForUser(request.getAnchorId(), userId);
 
-        Anchor anchor = Anchor.builder()
-                .tiktokId(request.getTiktokId())
-                .name(request.getName())
-                .avatarUrl(request.getAvatarUrl())
-                .exclusiveGifts(request.getExclusiveGifts() != null ? request.getExclusiveGifts() : new ArrayList<>())
-                .displayOrder(request.getDisplayOrder())
-                .totalScore(0L)
-                .isEliminated(false)
-                .isActive(true)
-                .preset(preset)
-                .build();
+        if (presetAnchorRepository.findByPresetIdAndAnchorId(presetId, anchor.getId()).isPresent()) {
+            throw new BusinessException("主播已存在");
+        }
 
-        preset.getAnchors().add(anchor);
+        Integer displayOrder = request.getDisplayOrder();
+        if (displayOrder == null) {
+            displayOrder = getNextDisplayOrder(preset);
+        }
+
+        PresetAnchor presetAnchor = buildPresetAnchor(preset, anchor, request, displayOrder);
+        preset.getAnchors().add(presetAnchor);
+
         Preset saved = presetRepository.save(preset);
 
         log.info("Anchor added to preset: {}", presetId);
@@ -181,12 +196,14 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO removeAnchor(String presetId, String anchorId) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO removeAnchor(String userId, String presetId, String anchorId) {
+        Preset preset = getPresetForUser(presetId, userId);
 
-        preset.getAnchors().removeIf(anchor -> anchor.getId().equals(anchorId));
-        anchorRepository.deleteById(anchorId);
+        PresetAnchor presetAnchor = presetAnchorRepository.findByPresetIdAndAnchorId(presetId, anchorId)
+                .orElseThrow(() -> new BusinessException("主播不存在"));
+
+        preset.getAnchors().removeIf(item -> item.getAnchor().getId().equals(anchorId));
+        presetAnchorRepository.delete(presetAnchor);
 
         Preset saved = presetRepository.save(preset);
         log.info("Anchor removed from preset: {}", presetId);
@@ -195,16 +212,15 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO updateAnchorGifts(String presetId, String anchorId, List<String> giftIds) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO updateAnchorGifts(String userId, String presetId, String anchorId, List<String> giftIds) {
+        Preset preset = getPresetForUser(presetId, userId);
 
-        Anchor anchor = preset.getAnchors().stream()
-                .filter(a -> a.getId().equals(anchorId))
+        PresetAnchor presetAnchor = preset.getAnchors().stream()
+                .filter(item -> item.getAnchor().getId().equals(anchorId))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("主播不存在"));
 
-        anchor.setExclusiveGifts(giftIds != null ? giftIds : new ArrayList<>());
+        presetAnchor.setExclusiveGifts(giftIds != null ? giftIds : new ArrayList<>());
         Preset saved = presetRepository.save(preset);
 
         log.info("Anchor gifts updated: {}", anchorId);
@@ -213,9 +229,8 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO updateTargetGifts(String presetId, TargetGiftsRequest request) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO updateTargetGifts(String userId, String presetId, TargetGiftsRequest request) {
+        Preset preset = getPresetForUser(presetId, userId);
 
         preset.setTargetGiftsJson(toJson(request));
         Preset saved = presetRepository.save(preset);
@@ -226,9 +241,8 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO updateWidgetSettings(String presetId, WidgetSettingsRequest request) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public PresetDTO updateWidgetSettings(String userId, String presetId, WidgetSettingsRequest request) {
+        Preset preset = getPresetForUser(presetId, userId);
 
         preset.setWidgetSettingsJson(toJson(request));
         Preset saved = presetRepository.save(preset);
@@ -239,9 +253,8 @@ public class PresetService {
     }
 
     @Transactional
-    public String refreshWidgetToken(String presetId) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public String refreshWidgetToken(String userId, String presetId) {
+        Preset preset = getPresetForUser(presetId, userId);
 
         String newToken = generateWidgetToken();
         preset.setWidgetToken(newToken);
@@ -252,9 +265,8 @@ public class PresetService {
     }
 
     @Transactional(readOnly = true)
-    public String generatePreviewUrl(String presetId) {
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
+    public String generatePreviewUrl(String userId, String presetId) {
+        Preset preset = getPresetForUser(presetId, userId);
 
         return "/widget/" + preset.getWidgetToken() + "?mode=preset";
     }
@@ -265,8 +277,14 @@ public class PresetService {
     }
 
     @Transactional
-    public PresetDTO setDefault(String presetId, String deviceId) {
-        List<Preset> devicePresets = presetRepository.findByDeviceId(deviceId);
+    public PresetDTO setDefault(String userId, String presetId, String deviceId) {
+        validateDeviceOwnership(userId, deviceId);
+        Preset preset = getPresetForUser(presetId, userId);
+        if (!deviceId.equals(preset.getDeviceId())) {
+            throw new BusinessException("无权限访问该设备");
+        }
+
+        List<Preset> devicePresets = presetRepository.findByDeviceIdAndUserId(deviceId, userId);
 
         for (Preset p : devicePresets) {
             p.setIsDefault(p.getId().equals(presetId));
@@ -274,16 +292,14 @@ public class PresetService {
 
         presetRepository.saveAll(devicePresets);
 
-        Preset preset = presetRepository.findById(presetId)
-                .orElseThrow(() -> new BusinessException("配置不存在"));
-
         log.info("Default preset set: {} for device: {}", presetId, deviceId);
         return PresetDTO.fromEntity(preset);
     }
 
     @Transactional(readOnly = true)
-    public PresetDTO getDefaultPreset(String deviceId) {
-        return presetRepository.findByDeviceIdAndIsDefaultTrue(deviceId)
+    public PresetDTO getDefaultPreset(String userId, String deviceId) {
+        validateDeviceOwnership(userId, deviceId);
+        return presetRepository.findByDeviceIdAndUserIdAndIsDefaultTrue(deviceId, userId)
                 .stream()
                 .findFirst()
                 .map(PresetDTO::fromEntity)
@@ -291,12 +307,79 @@ public class PresetService {
     }
 
     @Transactional(readOnly = true)
-    public long countByDeviceId(String deviceId) {
-        return presetRepository.countByDeviceId(deviceId);
+    public long countByDeviceId(String userId, String deviceId) {
+        validateDeviceOwnership(userId, deviceId);
+        return presetRepository.countByDeviceIdAndUserId(deviceId, userId);
+    }
+
+    private void validateDeviceOwnership(String userId, String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new BusinessException("设备ID不能为空");
+        }
+        if (userId == null || userId.isBlank()) {
+            throw new BusinessException("用户未认证");
+        }
+        if (userDeviceRepository.findByUserIdAndDeviceId(userId, deviceId).isEmpty()) {
+            throw new BusinessException("无权限访问该设备");
+        }
+    }
+
+    private Preset getPresetForUser(String presetId, String userId) {
+        Preset preset = presetRepository.findById(presetId)
+                .orElseThrow(() -> new BusinessException("配置不存在"));
+        if (!userId.equals(preset.getUserId())) {
+            throw new BusinessException("无权限访问该预设");
+        }
+        return preset;
+    }
+
+    private Anchor getAnchorForUser(String anchorId, String userId) {
+        Anchor anchor = anchorRepository.findById(anchorId)
+                .orElseThrow(() -> new BusinessException("主播不存在"));
+        if (!userId.equals(anchor.getUserId())) {
+            throw new BusinessException("无权限访问该主播");
+        }
+        return anchor;
+    }
+
+    private PresetAnchor buildPresetAnchor(Preset preset, Anchor anchor, PresetAnchorRequest request, Integer displayOrder) {
+        return PresetAnchor.builder()
+                .preset(preset)
+                .anchor(anchor)
+                .exclusiveGifts(request.getExclusiveGifts() != null ? request.getExclusiveGifts() : new ArrayList<>())
+                .displayOrder(displayOrder)
+                .totalScore(0L)
+                .isEliminated(false)
+                .isActive(true)
+                .build();
+    }
+
+    private int getNextDisplayOrder(Preset preset) {
+        return preset.getAnchors().stream()
+                .map(PresetAnchor::getDisplayOrder)
+                .filter(Objects::nonNull)
+                .max(Integer::compareTo)
+                .map(value -> value + 1)
+                .orElse(0);
     }
 
     private String generateWidgetToken() {
         return "wgt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+    }
+
+    private String resolveGameConfigJson(Preset.GameMode mode, GameConfigRequest request) {
+        if (request == null || mode == null) {
+            return null;
+        }
+        Object payload = switch (mode) {
+            case STICKER -> request.getSticker();
+            case PK -> request.getPk();
+            case FREE -> request.getFree();
+        };
+        if (payload == null) {
+            return null;
+        }
+        return toJson(payload);
     }
 
     private String toJson(Object obj) {

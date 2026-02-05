@@ -39,11 +39,18 @@ public class JwtSubscriptionFilter extends OncePerRequestFilter {
     );
 
     private static final List<String> SUBSCRIPTION_PATHS = List.of(
+            "/sessions",
             "/sessions/",
+            "/gifts",
             "/gifts/",
+            "/widget",
             "/widget/",
+            "/reports",
             "/reports/",
-            "/presets/"
+            "/presets",
+            "/presets/",
+            "/anchors",
+            "/anchors/"
     );
 
     private final JwtUtil jwtUtil;

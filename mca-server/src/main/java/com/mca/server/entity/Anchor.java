@@ -1,6 +1,12 @@
 package com.mca.server.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,11 +15,15 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
-@Table(name = "anchors")
+@Table(
+    name = "anchors",
+    indexes = {
+        @Index(name = "idx_anchors_user_id", columnList = "user_id"),
+        @Index(name = "idx_anchors_user_tiktok", columnList = "user_id, tiktok_id")
+    }
+)
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,6 +33,9 @@ public class Anchor {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
+
+    @Column(name = "user_id")
+    private String userId;
     
     @Column(name = "tiktok_id")
     private String tiktokId;
@@ -32,31 +45,6 @@ public class Anchor {
     
     @Column(name = "avatar_url")
     private String avatarUrl;
-    
-    @ElementCollection
-    @CollectionTable(name = "anchor_exclusive_gifts", joinColumns = @JoinColumn(name = "anchor_id"))
-    @Column(name = "gift_id")
-    @Builder.Default
-    private List<String> exclusiveGifts = new ArrayList<>();
-    
-    @Column(name = "total_score", nullable = false)
-    @Builder.Default
-    private Long totalScore = 0L;
-    
-    @Column(name = "is_eliminated", nullable = false)
-    @Builder.Default
-    private Boolean isEliminated = false;
-    
-    @Column(name = "is_active", nullable = false)
-    @Builder.Default
-    private Boolean isActive = true;
-    
-    @Column(name = "display_order")
-    private Integer displayOrder;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "preset_id")
-    private Preset preset;
     
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

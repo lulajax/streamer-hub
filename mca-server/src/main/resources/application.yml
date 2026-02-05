@@ -87,7 +87,7 @@ cors:
 # MCA Application Settings
 mca:
   auth:
-    max-devices: 1
+    max-devices: 2
   activation:
     code-length: 16
     default-expiry-days: 365

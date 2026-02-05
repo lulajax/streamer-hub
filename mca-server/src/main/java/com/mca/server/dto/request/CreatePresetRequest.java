@@ -27,7 +27,7 @@ public class CreatePresetRequest {
     private Preset.GameMode gameMode;
 
     @Schema(description = "主播列表")
-    private List<AnchorRequest> anchors;
+    private List<PresetAnchorRequest> anchors;
 
     @Schema(description = "目标礼物列表")
     private List<TargetGiftRequest> targetGifts;
