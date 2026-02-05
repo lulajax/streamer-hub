@@ -21,7 +21,7 @@ export default defineConfig(async () => {
           },
           vite: {
             build: {
-              sourcemap: true,
+              sourcemap: false,
               minify: false,
               outDir: path.join(projectRoot, 'dist/main'),
               rollupOptions: {
@@ -42,7 +42,7 @@ export default defineConfig(async () => {
           },
           vite: {
             build: {
-              sourcemap: true,
+              sourcemap: false,
               minify: false,
               outDir: path.join(projectRoot, 'dist/preload'),
               rollupOptions: {
@@ -64,7 +64,7 @@ export default defineConfig(async () => {
     build: {
       outDir: path.join(projectRoot, 'dist/renderer'),
       emptyOutDir: true,
-      sourcemap: true,
+      sourcemap: false,
     },
     server: {
       port: 5173,

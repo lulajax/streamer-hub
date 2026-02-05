@@ -300,6 +300,7 @@ function createMainWindow(): void {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
+    autoHideMenuBar: true,
     icon: path.join(process.env.VITE_PUBLIC, 'mca-icon.png'),
     webPreferences: {
       preload: path.join(MAIN_DIST, '../preload/index.js'),
@@ -312,7 +313,7 @@ function createMainWindow(): void {
 
   if (VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools()
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
     mainWindow.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }

@@ -1,0 +1,29 @@
+{
+  "name": "@local/tiktok-client",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:watch": "tsc -p tsconfig.json -w"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.2.5",
+    "@eulerstream/euler-api-sdk": "0.1.7",
+    "axios": "^1.11.0",
+    "callable-instance": "^2.0.0",
+    "proxy-agent": "^6.5.0",
+    "typed-emitter": "^2.1.0",
+    "ws": "^8.18.2"
+  }
+}

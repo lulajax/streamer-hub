@@ -6,7 +6,11 @@
   "author": "MCA Team",
   "license": "MIT",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
+    "build:tiktok-client": "npm --workspace @local/tiktok-client run build",
     "dev": "npm run build:preload && vite",
     "build": "npm run build:main && npm run build:renderer && npm run build:preload",
     "build:main": "tsc -p src/main/tsconfig.json",
