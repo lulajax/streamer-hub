@@ -44,6 +44,21 @@ public class GiftRecordDTO {
     @Schema(description = "绑定主播名称", example = "主播小明")
     private String anchorName;
 
+    @Schema(description = "绑定主播头像URL", example = "https://example.com/anchor.png")
+    private String anchorAvatar;
+
+    @Schema(description = "送礼目标成员ID", example = "member_123")
+    private String toMemberId;
+
+    @Schema(description = "送礼目标成员昵称", example = "小星星")
+    private String toMemberNickname;
+
+    @Schema(description = "消息ID", example = "msg_001")
+    private String messageId;
+
+    @Schema(description = "消息时间戳(毫秒)", example = "1705305000000")
+    private Long messageTimeStamp;
+
     @Schema(description = "礼物数量", example = "5")
     private Integer quantity;
 
@@ -71,6 +86,11 @@ public class GiftRecordDTO {
                 .userAvatar(entity.getUserAvatar())
                 .anchorId(entity.getAnchorId())
                 .anchorName(entity.getAnchorName())
+                .anchorAvatar(entity.getAnchorAvatar())
+                .toMemberId(entity.getToMemberId())
+                .toMemberNickname(entity.getToMemberNickname())
+                .messageId(entity.getMessageId())
+                .messageTimeStamp(entity.getMessageTimeStamp())
                 .quantity(entity.getQuantity())
                 .diamondCost(entity.getDiamondCost())
                 .totalCost(entity.getTotalCost())

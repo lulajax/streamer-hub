@@ -7,7 +7,9 @@ import com.mca.server.repository.GiftRecordRepository;
 import com.mca.server.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,11 @@ public class GiftService {
                 .userAvatar(giftDTO.getUserAvatar())
                 .anchorId(giftDTO.getAnchorId())
                 .anchorName(giftDTO.getAnchorName())
+                .anchorAvatar(giftDTO.getAnchorAvatar())
+                .toMemberId(giftDTO.getToMemberId())
+                .toMemberNickname(giftDTO.getToMemberNickname())
+                .messageId(giftDTO.getMessageId())
+                .messageTimeStamp(giftDTO.getMessageTimeStamp())
                 .quantity(giftDTO.getQuantity())
                 .diamondCost(giftDTO.getDiamondCost())
                 .totalCost(giftDTO.getTotalCost())
@@ -63,47 +70,11 @@ public class GiftService {
                 .map(GiftRecordDTO::fromEntity)
                 .collect(Collectors.toList());
     }
-    
+
     @Transactional(readOnly = true)
-    public List<GiftRecordDTO> getSessionGiftsByType(String sessionId, GiftRecord.BindType bindType) {
-        return giftRecordRepository.findBySessionIdAndBindType(sessionId, bindType)
-                .stream()
-                .map(GiftRecordDTO::fromEntity)
-                .collect(Collectors.toList());
-    }
-    
-    @Transactional
-    public GiftRecordDTO updateGiftBinding(String giftId, String anchorId, String anchorName, GiftRecord.BindType bindType) {
-        GiftRecord gift = giftRecordRepository.findById(giftId)
-                .orElseThrow(() -> new RuntimeException("Gift record not found"));
-        
-        gift.setAnchorId(anchorId);
-        gift.setAnchorName(anchorName);
-        gift.setBindType(bindType);
-        
-        GiftRecord updated = giftRecordRepository.save(gift);
-        
-        log.info("Gift binding updated: {} -> {}", giftId, anchorName);
-        
-        return GiftRecordDTO.fromEntity(updated);
-    }
-    
-    @Transactional(readOnly = true)
-    public List<GiftRecordDTO> getTopGifts(String sessionId, int limit) {
-        return giftRecordRepository.findBySessionId(sessionId, PageRequest.of(0, limit))
-                .getContent()
-                .stream()
-                .map(GiftRecordDTO::fromEntity)
-                .collect(Collectors.toList());
-    }
-    
-    @Transactional(readOnly = true)
-    public long getSessionGiftCount(String sessionId) {
-        return giftRecordRepository.countBySessionId(sessionId);
-    }
-    
-    @Transactional(readOnly = true)
-    public Long getSessionTotalDiamonds(String sessionId) {
-        return giftRecordRepository.sumTotalCostBySessionId(sessionId);
+    public Page<GiftRecordDTO> getSessionGiftsPaged(String sessionId, int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return giftRecordRepository.findBySessionId(sessionId, pageable)
+                .map(GiftRecordDTO::fromEntity);
     }
 }
