@@ -2,8 +2,9 @@ mca-electron/dist/*
 mca-electron/dist/main/*
 mca-electron/node_modules/*
 mca-electron/src/renderer/dist/*
-mca-electron/packages/tiktok-client/dist/*
-
+mca-electron/packages/*/dist/*
+mca-electron/package-lock.json
+mca-electron/pnpm-lock.yaml
 mca-widget/dist/*
 mca-widget/node_modules/*
 
