@@ -22,6 +22,8 @@ public interface SessionRepository extends JpaRepository<Session, String> {
     Optional<Session> findByRoomIdAndStatus(String roomId, Session.SessionStatus status);
 
     Optional<Session> findByWidgetToken(String widgetToken);
+
+    Optional<Session> findTopByPresetIdOrderByCreatedAtDesc(String presetId);
     
     @Query("SELECT s FROM Session s WHERE s.room.id = :roomId AND s.status != 'ENDED' ORDER BY s.createdAt DESC")
     List<Session> findActiveSessionsByRoomId(@Param("roomId") String roomId);

@@ -8,6 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.2.5
+        version: 2.11.0
+      '@eulerstream/euler-api-sdk':
+        specifier: 0.1.7
+        version: 0.1.7
+      axios:
+        specifier: ^1.11.0
+        version: 1.13.4
+      callable-instance:
+        specifier: ^2.0.0
+        version: 2.0.0
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -26,6 +38,9 @@ importers:
       pinia-plugin-persistedstate:
         specifier: ^4.7.1
         version: 4.7.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.27(typescript@5.9.3)))
+      proxy-agent:
+        specifier: ^6.5.0
+        version: 6.5.0
       puppeteer-core:
         specifier: ^22.0.0
         version: 22.15.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -44,12 +59,18 @@ importers:
       tiktok-live-connector:
         specifier: 2.0.0
         version: 2.0.0(@types/node@25.2.0)(encoding@0.1.13)
+      typed-emitter:
+        specifier: ^2.1.0
+        version: 2.1.0
       vue:
         specifier: ^3.5.27
         version: 3.5.27(typescript@5.9.3)
       vue-i18n:
         specifier: ^11.2.8
         version: 11.2.8(vue@3.5.27(typescript@5.9.3))
+      ws:
+        specifier: ^8.18.2
+        version: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     devDependencies:
       '@playwright/test':
         specifier: ^1.46.1
@@ -342,6 +363,10 @@ packages:
 
   '@eulerstream/euler-api-sdk@0.0.4':
     resolution: {integrity: sha512-MhHN40t5QQ8L1eM4SZxvtnzZsU8fmS2WPyKKLrHOIYDJ7KSeciDqyYhsplOgmnEdyy8gPHOx41voC1tNeAYAiQ==}
+    engines: {node: '>=10.0.0'}
+
+  '@eulerstream/euler-api-sdk@0.1.7':
+    resolution: {integrity: sha512-nahq6cTun0XClhpjFqSDOA79GpJXa5wgEEQIRE/q8G5sM83BzkJcRkQPaI0SP1AUgovCuAiXNdhEhqtvdAVf5g==}
     engines: {node: '>=10.0.0'}
 
   '@humanwhocodes/config-array@0.13.0':
@@ -2963,6 +2988,9 @@ packages:
   type@2.7.3:
     resolution: {integrity: sha512-8j+1QmAbPvLZow5Qpi6NCaN8FB60p/6x8/vfNqOk/hC+HuvFZhL4+WfekuhQLiqFZXOgQdrs3B+XxEmCc6b3FQ==}
 
+  typed-emitter@2.1.0:
+    resolution: {integrity: sha512-g/KzbYKbH5C2vPkaXGu8DJlHrGKHLsM25Zg9WuC9pMGfuvT+X25tZQWo5fK1BjBm8+UrVE9LDCvaY0CQk+fXDA==}
+
   typedarray-to-buffer@3.1.5:
     resolution: {integrity: sha512-zdu8XMNEDepKKR+XYOXAVPtWui0ly0NtohUscw+UmaHiAWT8hrV1rr//H6V+0DvJ3OQ19S979M0laLfX8rm82Q==}
 
@@ -3463,6 +3491,12 @@ snapshots:
       - debug
       - encoding
       - supports-color
+
+  '@eulerstream/euler-api-sdk@0.1.7':
+    dependencies:
+      axios: 1.13.4
+    transitivePeerDependencies:
+      - debug
 
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
@@ -6468,6 +6502,10 @@ snapshots:
   type-fest@0.21.3: {}
 
   type@2.7.3: {}
+
+  typed-emitter@2.1.0:
+    optionalDependencies:
+      rxjs: 7.8.2
 
   typedarray-to-buffer@3.1.5:
     dependencies:

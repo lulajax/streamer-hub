@@ -1,11 +1,10 @@
 package com.mca.server.controller;
 
 import com.mca.server.dto.ApiResponse;
-import com.mca.server.dto.PresetDTO;
-import com.mca.server.dto.SessionDTO;
 import com.mca.server.dto.WidgetDataDTO;
 import com.mca.server.service.PresetService;
 import com.mca.server.service.SessionService;
+import com.mca.server.service.WidgetDataService;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,6 +28,7 @@ public class WidgetController {
 
     private final PresetService presetService;
     private final SessionService sessionService;
+    private final WidgetDataService widgetDataService;
     @Value("${mca.widget.base-url:http://localhost:3000}")
     private String widgetBaseUrl;
 
@@ -87,46 +87,8 @@ public class WidgetController {
             @Parameter(description = "挂件令牌", required = true, example = "widget_token_abc123") @PathVariable String token,
             @Parameter(description = "模式：preset-预设模式, session-会话模式", example = "preset") @RequestParam(defaultValue = "preset") String mode) {
 
-        WidgetDataDTO data;
-        if ("session".equals(mode)) {
-            SessionDTO session = sessionService.getSessionByWidgetToken(token);
-            data = buildSessionWidgetData(session);
-        } else {
-            PresetDTO preset = presetService.getPresetByWidgetToken(token);
-            data = buildPresetWidgetData(preset);
-        }
-
+        WidgetDataDTO data = widgetDataService.getWidgetDataByToken(token, mode);
         return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    private WidgetDataDTO buildPresetWidgetData(PresetDTO preset) {
-        return WidgetDataDTO.builder()
-                .token(preset.getWidgetToken())
-                .name(preset.getName())
-                .gameMode(preset.getGameMode())
-                .status("PREVIEW")
-                .widgetSettings(preset.getWidgetSettingsJson())
-                .anchors(preset.getAnchors())
-                .build();
-    }
-
-    private WidgetDataDTO buildSessionWidgetData(SessionDTO session) {
-        PresetDTO preset = null;
-        if (session.getPresetId() != null) {
-            preset = presetService.getPreset(session.getPresetId());
-        }
-
-        return WidgetDataDTO.builder()
-                .token(session.getWidgetToken())
-                .name(session.getPresetName())
-                .gameMode(session.getGameMode())
-                .status(session.getStatus().name())
-                .currentRound(session.getCurrentRound())
-                .totalGifts(session.getTotalGifts())
-                .totalDiamonds(session.getTotalDiamonds())
-                .widgetSettings(session.getWidgetSettingsSnapshot())
-                .anchors(preset != null ? preset.getAnchors() : null)
-                .build();
     }
 }
 

@@ -1,7 +1,8 @@
 mca-electron/dist/*
+mca-electron/dist/main/*
 mca-electron/node_modules/*
 mca-electron/src/renderer/dist/*
-
+mca-electron/packages/tiktok-client/dist/*
 
 mca-widget/dist/*
 mca-widget/node_modules/*

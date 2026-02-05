@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class WidgetDataService {
@@ -22,6 +24,13 @@ public class WidgetDataService {
         }
 
         PresetDTO preset = presetService.getPresetByWidgetToken(token);
+        Optional<SessionDTO> latestSession = sessionService.getLatestSessionByPresetId(preset.getId());
+        if (latestSession.isPresent()) {
+            WidgetDataDTO data = buildSessionWidgetData(latestSession.get());
+            data.setToken(preset.getWidgetToken());
+            return data;
+        }
+
         return buildPresetWidgetData(preset);
     }
 
@@ -34,6 +43,13 @@ public class WidgetDataService {
     @Transactional(readOnly = true)
     public WidgetDataDTO getWidgetDataByPresetId(String presetId) {
         PresetDTO preset = presetService.getPreset(presetId);
+        Optional<SessionDTO> latestSession = sessionService.getLatestSessionByPresetId(presetId);
+        if (latestSession.isPresent()) {
+            WidgetDataDTO data = buildSessionWidgetData(latestSession.get());
+            data.setToken(preset.getWidgetToken());
+            return data;
+        }
+
         return buildPresetWidgetData(preset);
     }
 
