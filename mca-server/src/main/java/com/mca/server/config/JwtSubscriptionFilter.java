@@ -28,7 +28,6 @@ public class JwtSubscriptionFilter extends OncePerRequestFilter {
     // Public endpoints should bypass JWT + subscription checks (e.g., auth + Swagger docs)
     private static final List<String> PUBLIC_PATHS = List.of(
             "/auth/",
-            "/activation/",
             "/public/",
             "/ws/",
             "/actuator/",

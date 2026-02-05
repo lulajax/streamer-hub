@@ -3,7 +3,9 @@ package com.mca.server.service;
 import com.mca.server.dto.*;
 import com.mca.server.entity.ActivationCode;
 import com.mca.server.entity.User;
+import com.mca.server.entity.UserDevice;
 import com.mca.server.repository.ActivationCodeRepository;
+import com.mca.server.repository.UserDeviceRepository;
 import com.mca.server.repository.UserRepository;
 import com.mca.server.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,12 +29,16 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final ActivationCodeRepository activationCodeRepository;
+    private final UserDeviceRepository userDeviceRepository;
     
     @Value("${mca.activation.default-expiry-days:365}")
     private int defaultActivationExpiryDays;
 
     @Value("${mca.activation.code-expiry-days:0}")
     private int activationCodeExpiryDays;
+
+    @Value("${mca.auth.max-devices:1}")
+    private int maxDevices;
     
     @Transactional
     public ApiResponse<UserDTO> register(RegisterRequest request) {
@@ -166,9 +171,38 @@ public class AuthService {
         if (!user.getIsEmailVerified()) {
             return ApiResponse.error("Please verify your email before logging in");
         }
+
+        LocalDateTime now = LocalDateTime.now();
+        String deviceId = request.getDeviceId();
+        String deviceName = request.getDeviceName();
+
+        if (deviceId != null && !deviceId.isBlank()) {
+            Optional<UserDevice> deviceOpt = userDeviceRepository.findByUserIdAndDeviceId(user.getId(), deviceId);
+            if (deviceOpt.isPresent()) {
+                UserDevice device = deviceOpt.get();
+                if (deviceName != null) {
+                    device.setDeviceName(deviceName);
+                }
+                device.setLastLoginAt(now);
+                userDeviceRepository.save(device);
+            } else {
+                long deviceCount = userDeviceRepository.countByUserId(user.getId());
+                if (deviceCount >= maxDevices) {
+                    return ApiResponse.error("Device limit reached");
+                }
+                UserDevice newDevice = UserDevice.builder()
+                        .userId(user.getId())
+                        .deviceId(deviceId)
+                        .deviceName(deviceName)
+                        .firstSeenAt(now)
+                        .lastLoginAt(now)
+                        .build();
+                userDeviceRepository.save(newDevice);
+            }
+        }
         
         // Update login info
-        user.setLastLoginAt(LocalDateTime.now());
+        user.setLastLoginAt(now);
         if (request.getDeviceId() != null) {
             user.setDeviceId(request.getDeviceId());
         }

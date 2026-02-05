@@ -34,8 +34,6 @@ public class SecurityConfig {
                 // 原有公开路径
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/activation/**").permitAll()
-                .requestMatchers("/api/activation/**").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()

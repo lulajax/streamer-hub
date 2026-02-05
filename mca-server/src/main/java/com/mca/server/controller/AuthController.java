@@ -70,11 +70,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.verifyEmail(token));
     }
     
-    @Operation(summary = "用户登录", description = "使用邮箱和密码登录，返回用户信息和 JWT Token")
+    @Operation(summary = "用户登录", description = "使用邮箱和密码登录，返回用户信息和 JWT Token；设备数超限会返回错误")
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "登录成功"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数错误或设备信息缺失"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "邮箱或密码错误"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "设备数超限"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "无权限访问"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
