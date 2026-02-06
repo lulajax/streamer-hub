@@ -54,10 +54,6 @@ const defaultWidgetSettings: WidgetSettings = {
 
 const defaultTargetGifts: TargetGiftsConfig = {
   targetGifts: [],
-  scoringRules: {
-    mode: 'POINTS',
-    multiplier: 1,
-  },
 }
 
 const safeJsonParse = <T>(value?: string, fallback?: T): T | undefined => {

@@ -115,7 +115,7 @@ public class PresetController {
         return ResponseEntity.ok(ApiResponse.success("删除成功", null));
     }
 
-    @Operation(summary = "更新游戏配置", description = "更新指定预设的游戏玩法配置")
+    @Operation(summary = "更新游戏配置", description = "更新指定预设的游戏玩法配置、目标礼物和计分规则")
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "配置更新成功"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "配置参数无效"),
@@ -190,25 +190,6 @@ public class PresetController {
         String userId = SecurityUtil.getCurrentUserId();
         PresetDTO preset = presetService.updateAnchorGifts(userId, presetId, anchorId, giftIds);
         return ResponseEntity.ok(ApiResponse.success("专属礼物已更新", preset));
-    }
-
-    @Operation(summary = "更新目标礼物", description = "更新配置预设的目标礼物列表和计分规则")
-    @io.swagger.v3.oas.annotations.responses.ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "目标礼物更新成功"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未认证或 Token 无效"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "无权限访问该预设"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "预设不存在"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    @PutMapping("/{presetId}/target-gifts")
-    public ResponseEntity<ApiResponse<PresetDTO>> updateTargetGifts(
-            @Parameter(description = "预设ID", required = true, example = "preset_abc123") @PathVariable String presetId,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "目标礼物配置", required = true)
-            @RequestBody TargetGiftsRequest request) {
-        String userId = SecurityUtil.getCurrentUserId();
-        PresetDTO preset = presetService.updateTargetGifts(userId, presetId, request);
-        return ResponseEntity.ok(ApiResponse.success("目标礼物已更新", preset));
     }
 
     @Operation(summary = "更新挂件设置", description = "更新配置预设的挂件样式和显示设置")

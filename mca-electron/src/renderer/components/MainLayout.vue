@@ -100,7 +100,6 @@
         <ScrollArea class="h-full">
           <div class="p-6">
             <Dashboard v-if="activeTab === 'dashboard'" />
-            <Presets v-if="activeTab === 'presets'" />
             <StickerMode v-if="activeTab === 'sticker'" />
             <PKMode v-if="activeTab === 'pk'" />
             <FreeMode v-if="activeTab === 'free'" />
@@ -198,7 +197,6 @@ import Input from '@/components/ui/Input.vue'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ScrollArea from '@/components/ui/ScrollArea.vue'
 import Dashboard from '@/pages/Dashboard.vue'
-import Presets from '@/pages/Presets.vue'
 import StickerMode from '@/pages/StickerMode.vue'
 import PKMode from '@/pages/PKMode.vue'
 import FreeMode from '@/pages/FreeMode.vue'
@@ -207,7 +205,6 @@ import Reports from '@/pages/Reports.vue'
 import Settings from '@/pages/Settings.vue'
 import {
   LayoutDashboard,
-  ListChecks,
   Sticker,
   Swords,
   Users,
@@ -247,7 +244,6 @@ const isSubscriptionActive = computed(() => {
 
 const navItems = computed(() => [
   { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
-  { id: 'presets', label: t('presets'), icon: ListChecks },
   { id: 'sticker', label: t('stickerMode'), icon: Sticker },
   { id: 'pk', label: t('pkMode'), icon: Swords },
   { id: 'free', label: t('freeMode'), icon: Users },

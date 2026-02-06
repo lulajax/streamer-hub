@@ -120,30 +120,50 @@ function mapTikTokUser(data: any) {
 
 async function getRoomInfoFromConnection(connection: any) {
   if (!connection) return null
-  if (typeof connection.getRoomInfo === 'function') {
-    const info = await connection.getRoomInfo()
-    logTikTok('Room info via getRoomInfo', { roomId: info?.roomId || '' })
-    return info
-  }
-  if (typeof connection.fetchRoomInfo === 'function') {
-    const info = await connection.fetchRoomInfo()
-    logTikTok('Room info via fetchRoomInfo', { roomId: info?.roomId || '' })
-    return info
+  try {
+    if (typeof connection.getRoomInfo === 'function') {
+      const info = await connection.getRoomInfo()
+      if (!info) {
+        logTikTok('getRoomInfo returned undefined')
+        return null
+      }
+      logTikTok('Room info via getRoomInfo', { roomId: info?.roomId || '' })
+      return info
+    }
+    if (typeof connection.fetchRoomInfo === 'function') {
+      const info = await connection.fetchRoomInfo()
+      if (!info) {
+        logTikTok('fetchRoomInfo returned undefined')
+        return null
+      }
+      logTikTok('Room info via fetchRoomInfo', { roomId: info?.roomId || '' })
+      return info
+    }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    logTikTok('getRoomInfo failed', { error: errorMessage })
+    return null
   }
   return null
 }
 
 async function getAvailableGiftsFromConnection(connection: any) {
   if (!connection) return []
-  if (typeof connection.getAvailableGifts === 'function') {
-    const gifts = await connection.getAvailableGifts()
-    logTikTok('Available gifts via getAvailableGifts', { count: Array.isArray(gifts) ? gifts.length : 0 })
-    return gifts
-  }
-  if (typeof connection.fetchAvailableGifts === 'function') {
-    const gifts = await connection.fetchAvailableGifts()
-    logTikTok('Available gifts via fetchAvailableGifts', { count: Array.isArray(gifts) ? gifts.length : 0 })
-    return gifts
+  try {
+    if (typeof connection.getAvailableGifts === 'function') {
+      const gifts = await connection.getAvailableGifts()
+      logTikTok('Available gifts via getAvailableGifts', { count: Array.isArray(gifts) ? gifts.length : 0 })
+      return gifts || []
+    }
+    if (typeof connection.fetchAvailableGifts === 'function') {
+      const gifts = await connection.fetchAvailableGifts()
+      logTikTok('Available gifts via fetchAvailableGifts', { count: Array.isArray(gifts) ? gifts.length : 0 })
+      return gifts || []
+    }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    logTikTok('getAvailableGifts failed', { error: errorMessage })
+    return []
   }
   return []
 }
@@ -476,11 +496,15 @@ ipcMain.handle('tiktok-live-fetch-is-live', async (_, uniqueId: string) => {
     logTikTok('fetchIsLive', { uniqueId })
     const connection = await getTikTokConnection(uniqueId)
     const info = await getRoomInfoFromConnection(connection)
-    if (!info) return false
+    if (!info) {
+      logTikTok('fetchIsLive no room info', { uniqueId })
+      return false
+    }
     if (typeof info.isLive === 'boolean') return info.isLive
     return true
-  } catch {
-    logTikTok('fetchIsLive failed', { uniqueId })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    logTikTok('fetchIsLive failed', { uniqueId, error: errorMessage })
     return false
   }
 })
@@ -525,15 +549,22 @@ ipcMain.handle('tiktok-live-get-available-gifts', async (_, uniqueId: string) =>
 })
 
 ipcMain.handle('tiktok-live-connect', async (_, uniqueId: string) => {
-  logTikTok('connect', { uniqueId })
-  const connection = await getTikTokConnection(uniqueId)
-  const state = await connection.connect()
-  const roomId = state?.roomId || (await getRoomInfoFromConnection(connection))?.roomId
-  if (roomId && !tiktokIsConnected) {
-    tiktokIsConnected = true
-    sendTikTokEvent({ type: 'connected', payload: { roomId } })
+  try {
+    logTikTok('connect', { uniqueId })
+    const connection = await getTikTokConnection(uniqueId)
+    const state = await connection.connect()
+    const roomId = state?.roomId || (await getRoomInfoFromConnection(connection))?.roomId
+    if (roomId && !tiktokIsConnected) {
+      tiktokIsConnected = true
+      sendTikTokEvent({ type: 'connected', payload: { roomId } })
+    }
+    return { success: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    logTikTok('connect failed', { uniqueId, error: errorMessage })
+    sendTikTokEvent({ type: 'error', payload: { message: errorMessage || '连接失败' } })
+    return { success: false, error: errorMessage }
   }
-  return { success: true }
 })
 
 ipcMain.handle('tiktok-live-disconnect', () => {

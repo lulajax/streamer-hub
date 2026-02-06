@@ -33,14 +33,8 @@ export interface TargetGift {
   isTarget?: boolean
 }
 
-export interface ScoringRules {
-  mode: 'DIAMOND' | 'COUNT' | 'POINTS'
-  multiplier?: number
-}
-
 export interface TargetGiftsConfig {
   targetGifts: TargetGift[]
-  scoringRules?: ScoringRules
 }
 
 // Anchor types

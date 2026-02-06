@@ -8,6 +8,7 @@ import com.mca.server.entity.Anchor;
 import com.mca.server.entity.Preset;
 import com.mca.server.entity.PresetAnchor;
 import com.mca.server.exception.BusinessException;
+import com.mca.server.mapper.PresetMapper;
 import com.mca.server.repository.AnchorRepository;
 import com.mca.server.repository.PresetAnchorRepository;
 import com.mca.server.repository.PresetRepository;
@@ -31,6 +32,7 @@ public class PresetService {
     private final UserDeviceRepository userDeviceRepository;
     private final ObjectMapper objectMapper;
     private final WidgetUpdatePublisher widgetUpdatePublisher;
+    private final PresetMapper presetMapper;
 
     private static final int MAX_PRESETS_PER_DEVICE = 10;
 
@@ -54,7 +56,7 @@ public class PresetService {
                 .build();
 
         if (request.getTargetGifts() != null) {
-            preset.setTargetGiftsJson(toJson(request.getTargetGifts()));
+            preset.setTargetGiftsJson(buildTargetGiftsJson(request.getTargetGifts()));
         }
 
         if (request.getGameConfig() != null) {
@@ -86,35 +88,38 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
         log.info("Preset created: {} for device: {}", saved.getId(), deviceId);
 
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
     public List<PresetDTO> getPresetsByDevice(String userId, String deviceId) {
         validateDeviceOwnership(userId, deviceId);
-        return presetRepository.findByDeviceIdAndUserId(deviceId, userId).stream()
-                .map(PresetDTO::fromEntity)
-                .collect(Collectors.toList());
+        List<Preset> presets = presetRepository.findWithAnchorsByDeviceIdAndUserId(deviceId, userId);
+        return presetMapper.toDtoList(presets);
     }
 
     @Transactional(readOnly = true)
     public PresetDTO getPreset(String userId, String presetId) {
-        Preset preset = getPresetForUser(presetId, userId);
-        return PresetDTO.fromEntity(preset);
+        Preset preset = presetRepository.findWithAnchorsById(presetId)
+                .orElseThrow(() -> new BusinessException("配置不存在"));
+        if (!userId.equals(preset.getUserId())) {
+            throw new BusinessException("无权限访问该预设");
+        }
+        return presetMapper.toDto(preset);
     }
 
     @Transactional(readOnly = true)
     public PresetDTO getPreset(String presetId) {
-        Preset preset = presetRepository.findById(presetId)
+        Preset preset = presetRepository.findWithAnchorsById(presetId)
                 .orElseThrow(() -> new BusinessException("配置不存在"));
-        return PresetDTO.fromEntity(preset);
+        return presetMapper.toDto(preset);
     }
 
     @Transactional(readOnly = true)
     public PresetDTO getPresetByWidgetToken(String widgetToken) {
-        Preset preset = presetRepository.findByWidgetToken(widgetToken)
+        Preset preset = presetRepository.findWithAnchorsByWidgetToken(widgetToken)
                 .orElseThrow(() -> new BusinessException("配置不存在"));
-        return PresetDTO.fromEntity(preset);
+        return presetMapper.toDto(preset);
     }
 
     @Transactional
@@ -130,7 +135,7 @@ public class PresetService {
         }
 
         if (request.getTargetGifts() != null) {
-            preset.setTargetGiftsJson(toJson(request.getTargetGifts()));
+            preset.setTargetGiftsJson(buildTargetGiftsJson(request.getTargetGifts()));
         }
 
         if (request.getGameConfig() != null) {
@@ -145,7 +150,7 @@ public class PresetService {
         log.info("Preset updated: {}", presetId);
         widgetUpdatePublisher.publishForPreset(presetId);
 
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional
@@ -160,15 +165,22 @@ public class PresetService {
     public PresetDTO updateGameConfig(String userId, String presetId, GameConfigRequest request) {
         Preset preset = getPresetForUser(presetId, userId);
 
+        // 更新游戏配置
         String configJson = resolveGameConfigJson(preset.getGameMode(), request);
         if (configJson != null) {
             preset.setConfigJson(configJson);
         }
+
+        // 更新目标礼物（如果提供）
+        if (request.getTargetGifts() != null) {
+            preset.setTargetGiftsJson(buildTargetGiftsJson(request.getTargetGifts()));
+        }
+
         Preset saved = presetRepository.save(preset);
 
         log.info("Game config updated for preset: {}", presetId);
         widgetUpdatePublisher.publishForPreset(presetId);
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional
@@ -192,7 +204,7 @@ public class PresetService {
 
         log.info("Anchor added to preset: {}", presetId);
         widgetUpdatePublisher.publishForPreset(presetId);
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional
@@ -208,7 +220,7 @@ public class PresetService {
         Preset saved = presetRepository.save(preset);
         log.info("Anchor removed from preset: {}", presetId);
         widgetUpdatePublisher.publishForPreset(presetId);
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional
@@ -225,19 +237,7 @@ public class PresetService {
 
         log.info("Anchor gifts updated: {}", anchorId);
         widgetUpdatePublisher.publishForPreset(presetId);
-        return PresetDTO.fromEntity(saved);
-    }
-
-    @Transactional
-    public PresetDTO updateTargetGifts(String userId, String presetId, TargetGiftsRequest request) {
-        Preset preset = getPresetForUser(presetId, userId);
-
-        preset.setTargetGiftsJson(toJson(request));
-        Preset saved = presetRepository.save(preset);
-
-        log.info("Target gifts updated for preset: {}", presetId);
-        widgetUpdatePublisher.publishForPreset(presetId);
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional
@@ -249,7 +249,7 @@ public class PresetService {
 
         log.info("Widget settings updated for preset: {}", presetId);
         widgetUpdatePublisher.publishForPreset(presetId);
-        return PresetDTO.fromEntity(saved);
+        return presetMapper.toDto(saved);
     }
 
     @Transactional
@@ -359,5 +359,11 @@ public class PresetService {
         } catch (JsonProcessingException e) {
             throw new BusinessException("JSON序列化失败", e);
         }
+    }
+
+    private String buildTargetGiftsJson(List<TargetGiftRequest> targetGifts) {
+        return toJson(Map.of(
+                "targetGifts", targetGifts != null ? targetGifts : List.of()
+        ));
     }
 }

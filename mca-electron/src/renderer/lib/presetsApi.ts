@@ -12,13 +12,24 @@ export const getDefaultPreset = async () =>
 
 export const createPreset = async (payload: {
   name: string
-  gameMode: 'STICKER' | 'PK' | 'FREE'
+  mode?: 'sticker' | 'pk' | 'free'
+  gameMode?: 'STICKER' | 'PK' | 'FREE'
   anchors?: { anchorId: string; exclusiveGifts?: string[]; displayOrder?: number }[]
-}) =>
-  apiFetchAuth<ApiResponse<ApiPresetDTO>>('/presets', {
+  config?: unknown
+  targetGifts?: unknown
+}) => {
+  const gameMode = payload.gameMode ?? payload.mode?.toUpperCase() as 'STICKER' | 'PK' | 'FREE'
+  return apiFetchAuth<ApiResponse<ApiPresetDTO>>('/presets', {
     method: 'POST',
-    json: payload,
+    json: {
+      name: payload.name,
+      gameMode,
+      anchors: payload.anchors,
+      gameConfig: payload.config,
+      targetGifts: payload.targetGifts,
+    },
   })
+}
 
 export const updatePreset = async (
   presetId: string,
@@ -41,21 +52,10 @@ export const updateGameConfig = async (
     sticker?: unknown
     pk?: unknown
     free?: unknown
+    targetGifts?: unknown[]
   }
 ) =>
   apiFetchAuth<ApiResponse<ApiPresetDTO>>(`/presets/${presetId}/game-config`, {
-    method: 'PUT',
-    json: payload,
-  })
-
-export const updateTargetGifts = async (
-  presetId: string,
-  payload: {
-    targetGifts: unknown[]
-    scoringRules?: { mode: 'DIAMOND' | 'COUNT' | 'POINTS'; multiplier?: number }
-  }
-) =>
-  apiFetchAuth<ApiResponse<ApiPresetDTO>>(`/presets/${presetId}/target-gifts`, {
     method: 'PUT',
     json: payload,
   })

@@ -14,10 +14,10 @@
 import { cn } from '@/lib/cn'
 
 defineProps<{
-  modelValue?: string
+  modelValue?: string | number
 }>()
 
 defineEmits<{
-  (e: 'update:modelValue', value: string): void
+  (e: 'update:modelValue', value: string | number): void
 }>()
 </script>

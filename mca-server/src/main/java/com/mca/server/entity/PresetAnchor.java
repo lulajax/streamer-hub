@@ -51,7 +51,7 @@ public class PresetAnchor {
     @JoinColumn(name = "anchor_id", nullable = false)
     private Anchor anchor;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "preset_anchor_exclusive_gifts", joinColumns = @JoinColumn(name = "preset_anchor_id"))
     @Column(name = "gift_id")
     @Builder.Default

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,6 +24,9 @@ public class GameConfigRequest {
 
     @Schema(description = "自由模式配置")
     private FreeModeConfig free;
+
+    @Schema(description = "目标礼物列表")
+    private List<TargetGiftRequest> targetGifts;
 
     @Data
     @Builder
